@@ -1,0 +1,23 @@
+.venv/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.env
+backend/data/uploads/*
+!backend/data/uploads/.gitkeep
+node_modules/
+dist/
+.DS_Store
+*.onnx
+*.engine
+models/
+
+# --- Datasets -------------------------------------------------------------
+# Real identity documents must NEVER be committed. This is intentionally
+# broad: a leaked Aadhaar or passport scan cannot be un-published, and git
+# history keeps it even after deletion.
+backend/data/datasets/raw/**
+backend/data/datasets/generated/**
+backend/data/datasets/external/**
+!backend/data/datasets/**/.gitkeep
+!backend/data/datasets/**/README.md

@@ -1,0 +1,28 @@
+# Core API + validation. Installs in ~1 minute and is enough to run the
+# pipeline end-to-end with rule-based stages. Heavy ML models live in
+# requirements-ml.txt so the app is always runnable during development.
+
+fastapi==0.115.6
+uvicorn[standard]==0.34.0
+python-multipart==0.0.20
+pydantic==2.10.4
+pydantic-settings==2.7.0
+
+# Imaging: needed for ingest, region cropping and classical forensics.
+opencv-python-headless==4.10.0.84
+numpy==1.26.4
+pillow==11.0.0
+
+# Datastores (optional at runtime -- app degrades gracefully if absent)
+# pymongo is pinned transitively by motor -- do not pin it here, the ranges conflict
+motor==3.6.0
+redis==5.2.1
+qdrant-client==1.12.2
+minio==7.2.13
+
+python-dateutil==2.9.0.post0
+rapidfuzz==3.11.0
+
+pytest==8.3.4
+pytest-asyncio==0.25.0
+httpx==0.28.1

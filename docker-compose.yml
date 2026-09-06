@@ -1,0 +1,81 @@
+# Data layer for VeriShield AI.
+#
+# The application deliberately does NOT require these to run. Every one of them
+# is optional at runtime: the verification pipeline is pure computation over an
+# image, and these services provide persistence, the mock authority registry,
+# object storage and async work. A verification tool that refuses to verify
+# because Redis is down is worse than one that verifies without caching.
+#
+#   docker compose up -d
+#   docker compose ps
+
+services:
+  mongo:
+    image: mongo:7
+    container_name: verishield-mongo
+    restart: unless-stopped
+    # Host port 27018, NOT 27017.
+    #
+    # A native MongoDB service is commonly already running on 27017 (Windows
+    # installs it as an auto-start service). Windows will let both bind, and
+    # which one a client reaches then depends on binding order -- so the app
+    # would silently talk to whichever won, ignore this container's volume,
+    # and flip after a reboot. Remapping makes the project's database
+    # unambiguous without disturbing anything already installed.
+    ports: ["27018:27017"]
+    environment:
+      MONGO_INITDB_DATABASE: verishield
+    volumes:
+      - mongo_data:/data/db
+    healthcheck:
+      test: ["CMD", "mongosh", "--eval", "db.adminCommand('ping')"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  redis:
+    image: redis:7-alpine
+    container_name: verishield-redis
+    restart: unless-stopped
+    ports: ["6379:6379"]
+    command: redis-server --appendonly yes
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  qdrant:
+    image: qdrant/qdrant:v1.12.4
+    container_name: verishield-qdrant
+    restart: unless-stopped
+    # 6333 REST, 6334 gRPC. Holds face embeddings for identity resolution.
+    ports: ["6333:6333", "6334:6334"]
+    volumes:
+      - qdrant_data:/qdrant/storage
+
+  minio:
+    image: minio/minio:RELEASE.2024-11-07T00-52-20Z
+    container_name: verishield-minio
+    restart: unless-stopped
+    # 9000 S3 API, 9001 web console.
+    ports: ["9000:9000", "9001:9001"]
+    environment:
+      MINIO_ROOT_USER: verishield
+      MINIO_ROOT_PASSWORD: verishield-dev-secret
+    command: server /data --console-address ":9001"
+    volumes:
+      - minio_data:/data
+    healthcheck:
+      test: ["CMD", "mc", "ready", "local"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  mongo_data:
+  redis_data:
+  qdrant_data:
+  minio_data:

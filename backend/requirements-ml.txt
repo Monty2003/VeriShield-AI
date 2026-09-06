@@ -1,0 +1,28 @@
+# Heavy model dependencies. Install separately:
+#   pip install -r requirements-ml.txt
+#
+# GPU note: this project targets an RTX 3050 with 6 GB VRAM. That is enough
+# to run any ONE of these models comfortably, but not all of them resident at
+# once -- app/ml/manager.py loads and releases models on demand for that
+# reason. Install the CUDA 12.1 torch build:
+#   pip install torch torchvision --index-url https://download.pytorch.org/whl/cu121
+
+torch==2.5.1
+torchvision==0.20.1
+
+# OCR (Layer 3). PaddleOCR also supplies PP-Structure for layout analysis.
+paddlepaddle-gpu==2.6.2
+paddleocr==2.9.1
+
+# Document understanding (Layer 3/4) and tampering backbone (Layer 5)
+transformers==4.47.1
+timm==1.0.12
+
+# Document region detection (Layer 2)
+ultralytics==8.3.55
+
+# Face detection + recognition (Layer 6)
+insightface==0.7.3
+onnxruntime-gpu==1.20.1
+
+scikit-image==0.25.0
