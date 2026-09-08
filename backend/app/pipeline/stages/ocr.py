@@ -138,13 +138,10 @@ class PaddleOCRProvider:
 
     def read(self, image_bytes: bytes) -> OCRResult:
         try:
-            import numpy as np  # noqa: PLC0415
-            import cv2  # noqa: PLC0415
+            from app.core.imaging import decode_image  # noqa: PLC0415
 
             engine = self._get_engine()
-            img = cv2.imdecode(np.frombuffer(image_bytes, np.uint8), cv2.IMREAD_COLOR)
-            if img is None:
-                return OCRResult(available=False, engine=self.name, error="undecodable image")
+            img = decode_image(image_bytes)
 
             raw = engine.ocr(img, cls=True)
             lines: list[TextLine] = []

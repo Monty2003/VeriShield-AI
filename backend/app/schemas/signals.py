@@ -110,8 +110,8 @@ class Signal(BaseModel):
 
     blocking: bool = Field(
         False,
-        description="If this signal FAILs, the document cannot be ACCEPTed "
-        "regardless of how low the fraud risk score is.",
+        description="If this signal FAILs or ERRORs, the document cannot be "
+        "ACCEPTed regardless of how low the fraud risk score is.",
     )
 
     created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
@@ -119,7 +119,7 @@ class Signal(BaseModel):
     @property
     def is_blocking_failure(self) -> bool:
         """
-        A hard validity gate that has failed.
+        A hard gate that did not produce the evidence acceptance requires.
 
         Separates two questions the risk score alone cannot distinguish:
         "is this document fraudulent?" and "is this document acceptable?"
@@ -127,8 +127,21 @@ class Signal(BaseModel):
         SHOULD be low -- but it must never be auto-accepted. Encoding that as
         a high fraud score would be a lie about the evidence; encoding it as
         a blocking condition states the truth: authentic, but not usable.
+
+        ERROR blocks as well as FAIL, and the distinction between them matters
+        less here than what they have in common: neither produced the
+        affirmative evidence a clean acceptance rests on. A passport whose MRZ
+        could not be read is not accused of anything -- but nothing about its
+        contents was verified either, so approving it would mean approving a
+        document the system never actually checked.
+
+        SKIP deliberately does not block. A check that did not apply is not a
+        gap in the evidence; it is a check that was never owed.
         """
-        return self.blocking and self.status == SignalStatus.FAIL
+        return self.blocking and self.status in (
+            SignalStatus.FAIL,
+            SignalStatus.ERROR,
+        )
 
     @property
     def weight(self) -> float:

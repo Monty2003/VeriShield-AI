@@ -13,8 +13,29 @@ with a stated reason.
 
 Working end-to-end today, without the ML stack installed:
 
+- **Aadhaar** — Verhoeff checksum. Catches every single-digit error and every
+  adjacent transposition (verified exhaustively). Numbers are masked in all
+  output; only the last four digits ever appear.
+- **PAN** — structure, holder category, and the surname cross-check: the fifth
+  character of a PAN is the holder's surname initial, so number and printed
+  name must agree.
+- **Certificates** — each total is printed in digits and in words, so raising a
+  mark means altering both consistently.
 - **Passport MRZ validation** — ICAO 9303 check-digit arithmetic, verified
   against the published specimen. Deterministic, no model required.
+- **Face verification (L6)** — RetinaFace + ArcFace. Validated on real
+  documents: correctly identified the same person across an Aadhaar and a PAN
+  card (0.454) and a PAN and a marksheet (0.465), while separating 27 other
+  pairs at 0.19 or below.
+- **Authority registry (L8)** — a swappable interface with a synthetic
+  registry behind it. "Not found" in a non-authoritative registry contributes
+  **no** risk, because a development database of five records knows nothing
+  about anybody else.
+- **Audit trail** — verifications recorded with identifiers masked at write
+  time, so a decision can be reproduced without retaining the numbers.
+- **HEIC support** — the format most current phones shoot by default.
+- **Document side detection** — front vs reverse. A back-side photograph is a
+  good capture of a real document that simply carries no identity fields.
 - **Document classification** — keyword/pattern based, with a real `UNKNOWN`
   outcome rather than a forced guess.
 - **Field extraction** — MRZ, PAN, Aadhaar (masked in all output).
@@ -23,11 +44,19 @@ Working end-to-end today, without the ML stack installed:
   comparison, tolerant of transliteration and clerical convention.
 - **OCR** — PaddleOCR, validated against 14 real specimen passports.
 - **REST API** — FastAPI with generated docs at `/docs`.
-- **88 tests passing.**
+- **168 tests passing.**
+- **A trained tampering model** (ResNet-18 patch classifier, AUC 0.80 on
+  held-out documents) — used as a reviewer overlay, never for screening.
+  See [docs/FORENSICS.md](docs/FORENSICS.md) for why.
 
-Not yet implemented: face verification (Layer 6), the authority-record
-registry (Layer 8), and the React dashboard. Forensics (Layer 5) is partially
-disabled — **read [docs/FORENSICS.md](docs/FORENSICS.md), it explains why.**
+All eight layers are implemented. Remaining: the React dashboard.
+
+Forensics (Layer 5) is disabled, and that is now a **measured** decision rather
+than a cautious one: calibrated against 28 real camera captures and 122
+tampered variants with ground-truth masks, the detectors scored at chance
+(TPR 8% at FPR 7%) and located the actual edit 2-8% of the time. See
+[docs/FORENSICS.md](docs/FORENSICS.md) for the numbers and what would change
+them.
 
 ---
 
@@ -38,7 +67,7 @@ cd backend
 python -m venv .venv
 ./.venv/Scripts/python.exe -m pip install -r requirements.txt   # ~1 min
 
-./.venv/Scripts/python.exe -m pytest                            # 66 tests
+./.venv/Scripts/python.exe -m pytest                            # 168 tests
 ./.venv/Scripts/python.exe -m uvicorn app.main:app --reload
 ```
 
@@ -108,13 +137,13 @@ why editing an MRZ by hand is detectable arithmetically.
          ├─────────────────┤
          │  L4  Validate   │  per-type rulebook, checksums
          ├─────────────────┤
-         │  L5  Forensics  │  noise, metadata (ELA/copy-move gated)
+         │  L5  Forensics  │  metadata (detectors off -- measured at chance)
          ├─────────────────┤
-         │  L6  Face       │  not yet implemented
+         │  L6  Face       │  detect, embed, compare identities
          ├─────────────────┤
          │  L7  Cross-doc  │  same person across documents?
          ├─────────────────┤
-         │  L8  Registry   │  not yet implemented
+         │  L8  Registry   │  issuer records, or an honest silence
          └────────┬────────┘
                   │   every stage emits Signals
                   ▼

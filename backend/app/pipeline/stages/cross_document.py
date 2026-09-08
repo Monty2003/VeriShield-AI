@@ -298,3 +298,115 @@ def compare_documents(docs: list[DocumentAnalysis]) -> list[Signal]:
         )
 
     return signals
+
+
+def compare_faces_across_documents(
+    portraits: list[tuple[str, object]],
+) -> list[Signal]:
+    """
+    Compare the portraits printed on several documents in one case.
+
+    Names and dates can be transliterated, reordered or mistyped, and this
+    module goes to some length to tolerate that. A face cannot be
+    transliterated. When two documents carry photographs, comparing them asks
+    the question the text comparison can only approximate: is this the same
+    person?
+
+    `portraits` is (document label, DetectedFace). Faces without an embedding
+    are the caller's responsibility to exclude -- a detection alone says a
+    photograph exists, not who is in it.
+    """
+    from itertools import combinations
+
+    from app.pipeline.stages.face import (
+        POSSIBLE_MATCH_THRESHOLD,
+        STRONG_MATCH_THRESHOLD,
+        cosine_similarity,
+    )
+
+    usable = [(label, face) for label, face in portraits if face.has_embedding]
+
+    if len(usable) < 2:
+        return [
+            signal(
+                code="cross.face.not_applicable",
+                stage=Stage.CROSS_DOC,
+                title="Portrait consistency",
+                status=SignalStatus.SKIP,
+                severity=Severity.INFO,
+                reason=(
+                    f"Only {len(usable)} document(s) in this case carry a usable "
+                    f"portrait, so the photographs could not be compared. Two or "
+                    f"more would allow the strongest cross-document check "
+                    f"available -- a face cannot be spelled differently."
+                ),
+            )
+        ]
+
+    signals: list[Signal] = []
+    for (label_a, face_a), (label_b, face_b) in combinations(usable, 2):
+        similarity = cosine_similarity(face_a.embedding, face_b.embedding)
+        evidence = {
+            "a": label_a,
+            "b": label_b,
+            "similarity": round(similarity, 4),
+            "strong_threshold": STRONG_MATCH_THRESHOLD,
+        }
+
+        if similarity >= STRONG_MATCH_THRESHOLD:
+            signals.append(
+                signal(
+                    code="cross.face.match",
+                    stage=Stage.CROSS_DOC,
+                    title="Portrait consistency",
+                    status=SignalStatus.PASS,
+                    severity=Severity.INFO,
+                    confidence=0.85,
+                    reason=(
+                        f"The portraits on the {label_a} and the {label_b} are the "
+                        f"same person (similarity {similarity:.2f}). This is "
+                        f"stronger evidence than the names matching, which "
+                        f"spelling variation can produce by accident."
+                    ),
+                    evidence=evidence,
+                )
+            )
+        elif similarity >= POSSIBLE_MATCH_THRESHOLD:
+            signals.append(
+                signal(
+                    code="cross.face.uncertain",
+                    stage=Stage.CROSS_DOC,
+                    title="Portrait consistency",
+                    status=SignalStatus.WARN,
+                    severity=Severity.MEDIUM,
+                    confidence=0.5,
+                    reason=(
+                        f"The portraits on the {label_a} and the {label_b} are "
+                        f"neither clearly the same person nor clearly different "
+                        f"(similarity {similarity:.2f}). Documents issued years "
+                        f"apart routinely score here for one person -- so do some "
+                        f"genuinely different people. A reviewer should look."
+                    ),
+                    evidence=evidence,
+                )
+            )
+        else:
+            signals.append(
+                signal(
+                    code="cross.face.mismatch",
+                    stage=Stage.CROSS_DOC,
+                    title="Portrait consistency",
+                    status=SignalStatus.FAIL,
+                    severity=Severity.CRITICAL,
+                    confidence=0.8,
+                    reason=(
+                        f"The portraits on the {label_a} and the {label_b} appear "
+                        f"to be different people (similarity {similarity:.2f}). "
+                        f"Both documents may be individually genuine while "
+                        f"belonging to two different holders."
+                    ),
+                    evidence=evidence,
+                )
+            )
+
+    return signals

@@ -21,3 +21,4 @@ backend/data/datasets/generated/**
 backend/data/datasets/external/**
 !backend/data/datasets/**/.gitkeep
 !backend/data/datasets/**/README.md
+backend/data/samples/synthetic/

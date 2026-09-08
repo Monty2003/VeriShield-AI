@@ -251,3 +251,155 @@ class TestCaseVerification:
         case = assess_case([clean.risk, tampered.risk], [])
         assert case.score >= tampered.risk.score
         assert case.decision == Decision.REJECT
+
+
+class TestPassportWithoutMRZ:
+    """
+    Regression from real data.
+
+    A real Indian passport photograph whose MRZ band was not captured scored
+    22/100 and was ACCEPTED -- despite the pipeline having verified nothing
+    about its contents, since every passport content check reads from the MRZ.
+    """
+
+    def test_passport_without_mrz_is_not_auto_accepted(self, document_image):
+        result = analyze_document(
+            document_image,
+            "passport.jpg",
+            declared_type=DocumentType.PASSPORT,
+            ocr_provider=InjectedTextProvider(
+                "REPUBLIC OF INDIA\nPASSPORT\nPLACE OF ISSUE PATNA"
+            ),
+        )
+        assert result.risk.decision != Decision.ACCEPT
+        assert any(s.code == "mrz.not_found" for s in result.signals)
+        assert result.risk.blocking_reasons
+
+    def test_missing_mrz_is_not_scored_as_fraud(self, document_image):
+        """A cropped scan is a capture problem, not evidence of forgery."""
+        result = analyze_document(
+            document_image,
+            "passport.jpg",
+            declared_type=DocumentType.PASSPORT,
+            ocr_provider=InjectedTextProvider(
+                "REPUBLIC OF INDIA\nPASSPORT\nPLACE OF ISSUE PATNA"
+            ),
+        )
+        assert result.risk.band.value == "low"
+
+
+class TestClassifierEvidenceInvariant:
+    """
+    No identifier SHAPE may decide a document type on its own.
+
+    Five letters, four digits, a letter. A twelve-digit run. These are exactly
+    what OCR noise produces by accident on any densely printed page, so a
+    document must also show the issuer's printed wording before a type is
+    assigned. Getting this wrong is not a cosmetic mislabel: the type selects
+    the rulebook, so a document classified from a hallucinated string is
+    validated against rules that were never meant for it.
+
+    This was a live defect -- the PAN number pattern carried 0.55 against a
+    0.45 threshold, so one fabricated string classified any document as a PAN
+    card with no corroboration whatsoever.
+    """
+
+    def test_no_bare_identifier_pattern_can_classify_alone(self):
+        from app.pipeline.stages.classify import MIN_TYPE_CONFIDENCE, _RULES
+
+        offenders = []
+        for doc_type, rules in _RULES.items():
+            for pattern, weight, cue in rules:
+                # Identifier patterns are the ones with no alphabetic literal
+                # in them -- they match a shape, not printed words.
+                looks_like_a_shape = not any(
+                    c.isalpha() for c in pattern.pattern.replace("A-Z", "").replace("\b", "")
+                )
+                if looks_like_a_shape and weight >= MIN_TYPE_CONFIDENCE:
+                    offenders.append(f"{doc_type.value}: {cue} at {weight}")
+
+        assert not offenders, (
+            "these identifier patterns can classify a document by themselves: "
+            + "; ".join(offenders)
+        )
+
+    @pytest.mark.parametrize(
+        "text",
+        [
+            "SOME DOCUMENT\nEJAPS0276M\nrandom text",       # PAN shape
+            "SOME DOCUMENT\n1234 5678 9012\nrandom text",   # Aadhaar shape
+            "SOME DOCUMENT\nMH12 2019 0001234",             # DL shape
+            "SOME DOCUMENT\nABC1234567",                    # EPIC shape
+        ],
+    )
+    def test_identifier_shape_without_issuer_text_is_unknown(self, text):
+        assert classify_text(text)[0] == DocumentType.UNKNOWN
+
+    def test_issuer_wording_still_classifies_confidently(self):
+        """The fix must not have cost us the real signal."""
+        real_pan = (
+            "INCOME TAX DEPARTMENT\nGOVT.OF INDIA\n"
+            "Permanent Account Number\nEJAPS0276M"
+        )
+        doc_type, confidence, _ = classify_text(real_pan)
+        assert doc_type == DocumentType.PAN
+        assert confidence >= 0.9
+
+
+class TestClassifierOnDegradedOCR:
+    """
+    Real OCR output from real Aadhaar cards, kept verbatim.
+
+    Exact-match rules recognised only 46 of 217 real cards. The rest came back
+    as "Govemment of India", "GOVERNIENT OFINCAA", "/Your Aadhar No." -- genuine
+    documents whose printed wording OCR mangled. Demanding exact spelling threw
+    away three quarters of the set and sent them all to manual review.
+    """
+
+    # Verbatim PaddleOCR output from four different real Aadhaar cards.
+    MANGLED = [
+        "ANESTNYT /Your Aadhar No. 87701802 0033 7 HR/Your Aar No 333 "
+        "8770 18020033 Gorenmentdinda",
+        "600312479950 3-33 H R Gavernment of India Gomatil /D080105/1993 "
+        "T/Female 60031247 9950 333",
+        "3 g4/MALE f/DOB01/01/1976 Bholanath Govemment of India 865093562671",
+    ]
+
+    @pytest.mark.parametrize("text", MANGLED)
+    def test_ocr_corrupted_aadhaar_is_still_recognised(self, text):
+        assert classify_text(text)[0] == DocumentType.AADHAAR
+
+    def test_shared_wording_alone_decides_nothing(self):
+        """
+        'Government of India' is printed on Aadhaar cards, PAN cards and
+        passports alike. It may corroborate a type that other evidence already
+        points at; it must never pick one on its own.
+        """
+        doc_type, confidence, _ = classify_text(
+            "GOVERNMENT OF INDIA some official looking document"
+        )
+        assert doc_type == DocumentType.UNKNOWN
+        assert confidence < 0.45
+
+    def test_identifier_plus_shared_wording_does_classify(self):
+        """
+        The combination is legitimate evidence even though neither half is.
+        Several weak cues agreeing is a different thing from one fabricated
+        pattern deciding alone -- which is the failure the weight cap prevents.
+        """
+        assert (
+            classify_text("Government of India 8770 1802 0033 MALE DOB 01/01/1976")[0]
+            == DocumentType.AADHAAR
+        )
+
+    def test_fuzzy_matching_does_not_confuse_pan_with_aadhaar(self):
+        real_pan = (
+            "HR INCOME TAX DEPARTMENT GOVT.OF INDIA MONIKA MAHADEV SHINDE "
+            "Permanent Account Number EJAPS0276M"
+        )
+        assert classify_text(real_pan)[0] == DocumentType.PAN
+
+    def test_evidence_records_that_a_match_was_approximate(self):
+        """A reviewer must be able to see the cue was fuzzy, not exact."""
+        _, _, evidence = classify_text(self.MANGLED[1])
+        assert any("approximate" in e.cue for e in evidence)

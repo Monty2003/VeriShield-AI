@@ -374,11 +374,26 @@ def validate_passport(mrz: MRZData | None, fields: ExtractedFields | None = None
                 title="MRZ detection",
                 status=SignalStatus.ERROR,
                 severity=Severity.HIGH,
+                # Blocking. On a passport the MRZ is not one check among many --
+                # it is the only part of the document that verifies itself, and
+                # every content check in this rulebook reads from it. Without
+                # it, nothing about the document's contents has been checked at
+                # all, and a low score means "we found nothing", not "we looked
+                # and it was fine".
+                #
+                # The severity stays HIGH rather than CRITICAL because an
+                # unreadable MRZ is usually a cropped or blurred scan, not a
+                # forgery. The score should say "unverified", not "suspected
+                # fake"; the blocking flag is what prevents acceptance.
+                blocking=True,
                 reason=(
-                    "No machine-readable zone was found. The MRZ is the strongest "
-                    "single verification signal on a passport, so without it this "
-                    "assessment rests on weaker evidence. Re-scan with the full "
-                    "bottom edge of the data page visible."
+                    "No machine-readable zone was found, so none of the passport "
+                    "content checks could run -- the document number, date of "
+                    "birth and expiry date were never verified. This is usually a "
+                    "cropped or blurred scan rather than a sign of forgery, so it "
+                    "is not scored as fraud, but the document cannot be accepted "
+                    "on this assessment. Re-scan with the full bottom edge of the "
+                    "data page visible."
                 ),
             )
         ]

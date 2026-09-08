@@ -183,3 +183,37 @@ class TestExplainability:
     def test_clean_document_still_explains_itself(self):
         result = assess_document([sig(SignalStatus.PASS, Severity.INFO)], STAGES)
         assert result.top_reasons  # never returns an unexplained verdict
+
+
+class TestBlockingOnMissingEvidence:
+    """
+    ERROR blocks as well as FAIL.
+
+    The two differ in what happened, but not in what matters here: neither
+    produced the affirmative evidence a clean acceptance rests on. A passport
+    whose MRZ could not be read is accused of nothing -- and verified in no
+    respect either.
+    """
+
+    def test_blocking_error_prevents_accept(self):
+        signals = [
+            sig(SignalStatus.PASS, Severity.INFO, code="p1"),
+            sig(SignalStatus.ERROR, Severity.HIGH, code="mrz.not_found", blocking=True),
+        ]
+        result = assess_document(signals, STAGES)
+        assert result.decision == Decision.MANUAL_REVIEW
+        assert result.blocking_reasons
+
+    def test_blocking_error_is_not_scored_as_fraud(self):
+        """Unreadable is not the same as forged; the score must not say it is."""
+        result = assess_document(
+            [sig(SignalStatus.ERROR, Severity.HIGH, blocking=True)], STAGES
+        )
+        assert result.band == RiskBand.LOW
+
+    def test_blocking_skip_does_not_block(self):
+        """A check that did not apply is not a gap in the evidence."""
+        result = assess_document(
+            [sig(SignalStatus.SKIP, Severity.HIGH, blocking=True)], STAGES
+        )
+        assert not result.blocking_reasons

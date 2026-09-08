@@ -28,6 +28,7 @@ import cv2
 import numpy as np
 from PIL import Image
 
+from app.core.imaging import decode_image, open_pil, source_format
 from app.schemas.signals import (
     Region,
     Severity,
@@ -82,14 +83,16 @@ class ForensicMap:
     applicable: bool = True
     note: str = ""
 
+    # The detector's raw output BEFORE any threshold is applied -- the peak
+    # deviation, in standard deviations. Calibration needs this: a thresholded
+    # result cannot be used to choose a threshold, and `heatmap` is normalised
+    # by its own maximum so its peak is always 1.0 and carries no information.
+    peak_score: float = 0.0
+
 
 def _to_cv(image_bytes: bytes) -> np.ndarray:
-    """Decode uploaded bytes to a BGR image array."""
-    arr = np.frombuffer(image_bytes, dtype=np.uint8)
-    img = cv2.imdecode(arr, cv2.IMREAD_COLOR)
-    if img is None:
-        raise ValueError("could not decode image")
-    return img
+    """Decode uploaded bytes to a BGR image array (HEIC included)."""
+    return decode_image(image_bytes)
 
 
 def _cells_to_regions(
@@ -150,8 +153,8 @@ def error_level_analysis(image_bytes: bytes) -> ForensicMap:
     disagree with, and reporting an ELA score for one would be fabricating
     evidence.
     """
-    pil = Image.open(io.BytesIO(image_bytes))
-    fmt = (pil.format or "").upper()
+    fmt = source_format(image_bytes)
+    pil = open_pil(image_bytes)
 
     if fmt not in ("JPEG", "JPG", "MPO"):
         return ForensicMap(
@@ -162,8 +165,10 @@ def error_level_analysis(image_bytes: bytes) -> ForensicMap:
             applicable=False,
             note=(
                 f"Source is {fmt or 'an unknown format'}, not JPEG. Error Level "
-                f"Analysis compares compression histories and has no meaning "
-                f"without one, so it was not run."
+                f"Analysis compares JPEG compression histories, and a "
+                f"{fmt or 'non-JPEG'} file has none to compare -- HEIC in "
+                f"particular uses HEVC, an entirely different codec. Reporting "
+                f"a number here would be inventing evidence, so it was not run."
             ),
         )
 
@@ -263,7 +268,13 @@ def error_level_analysis(image_bytes: bytes) -> ForensicMap:
     regions = _cells_to_regions(
         norm, threshold, w, h, "compression residual out of line with similar areas"
     )
-    return ForensicMap(heatmap=norm, regions=regions, mean=mean, std=std)
+    return ForensicMap(
+        heatmap=norm,
+        regions=regions,
+        mean=mean,
+        std=std,
+        peak_score=float(z.max()),
+    )
 
 
 def noise_inconsistency(image_bytes: bytes) -> ForensicMap:
@@ -335,7 +346,10 @@ def noise_inconsistency(image_bytes: bytes) -> ForensicMap:
     threshold = (NOISE_SIGMA_THRESHOLD * std) / (deviation.max() + 1e-6) if std > 0 else 1.1
 
     regions = _cells_to_regions(norm, threshold, w, h, "inconsistent noise floor")
-    return ForensicMap(heatmap=norm, regions=regions, mean=mean, std=std)
+    peak = float(deviation.max() / std) if std > 0 else 0.0
+    return ForensicMap(
+        heatmap=norm, regions=regions, mean=mean, std=std, peak_score=peak
+    )
 
 
 # A real copy-move moves a CONTIGUOUS PATCH, so the many keypoint pairs it
@@ -473,8 +487,7 @@ def analyze_metadata(image_bytes: bytes) -> list[Signal]:
     """
     signals: list[Signal] = []
     try:
-        pil = Image.open(io.BytesIO(image_bytes))
-        exif = pil.getexif()
+        exif = open_pil(image_bytes).getexif()
     except Exception:
         return signals
 
@@ -750,58 +763,85 @@ def run_forensics(
                 ),
             )
         )
-        return signals + analyze_metadata(image_bytes)
 
+    # Guarded, not returned early. This branch originally ended in a `return`,
+    # which silently skipped every stage added after it -- the learned detector
+    # was wired in below and then never ran on the default path. That is the
+    # kind of omission that looks like a working feature until someone reads
+    # the signal list and notices one is missing.
+    if enable_copy_move:
+        try:
+            cm_regions = copy_move_detection(image_bytes)
+            if cm_regions:
+                signals.append(
+                    signal(
+                        code="forensics.copy_move.detected",
+                        stage=Stage.FORENSICS,
+                        title="Copy-move detection",
+                        # WARN, not FAIL, and deliberately low confidence. Identity
+                        # documents are full of intentional repetition, so this
+                        # detector's false-positive rate on real documents is high
+                        # even after periodicity suppression. It earns its place as
+                        # a pointer for the reviewer's eye, not as a verdict -- and
+                        # the Risk Engine weights it accordingly.
+                        status=SignalStatus.WARN,
+                        severity=Severity.MEDIUM,
+                        confidence=0.45,
+                        reason=(
+                            f"Found {len(cm_regions)} area(s) that resemble duplicates of "
+                            f"other parts of the SAME image, after discounting the regular "
+                            f"repeating structure a document normally contains. Cloning a "
+                            f"patch over an existing value is a common edit because it "
+                            f"preserves surrounding texture. Security backgrounds and "
+                            f"repeated layout can also trigger this, so confirm visually "
+                            f"before treating it as a finding."
+                        ),
+                        evidence={"duplicate_clusters": len(cm_regions)},
+                        regions=cm_regions,
+                    )
+                )
+            else:
+                signals.append(
+                    signal(
+                        code="forensics.copy_move.clean",
+                        stage=Stage.FORENSICS,
+                        title="Copy-move detection",
+                        status=SignalStatus.PASS,
+                        severity=Severity.INFO,
+                        reason="No duplicated regions were found within the image.",
+                    )
+                )
+        except Exception as exc:  # noqa: BLE001
+            signals.append(
+                signal(
+                    code="forensics.copy_move.error",
+                    stage=Stage.FORENSICS,
+                    title="Copy-move detection",
+                    status=SignalStatus.ERROR,
+                    severity=Severity.LOW,
+                    reason=f"Copy-move detection could not complete: {exc}",
+                )
+            )
+
+    # --- Learned detector (Layer 5, Phase 2) ---
+    #
+    # Sits ALONGSIDE the classical methods rather than replacing them, and is
+    # gated by its own measured performance: if training did not reach a usable
+    # operating point on held-out documents, it reports SKIP and contributes
+    # nothing. Same rule as ELA and copy-move, for the same reason.
     try:
-        cm_regions = copy_move_detection(image_bytes)
-        if cm_regions:
-            signals.append(
-                signal(
-                    code="forensics.copy_move.detected",
-                    stage=Stage.FORENSICS,
-                    title="Copy-move detection",
-                    # WARN, not FAIL, and deliberately low confidence. Identity
-                    # documents are full of intentional repetition, so this
-                    # detector's false-positive rate on real documents is high
-                    # even after periodicity suppression. It earns its place as
-                    # a pointer for the reviewer's eye, not as a verdict -- and
-                    # the Risk Engine weights it accordingly.
-                    status=SignalStatus.WARN,
-                    severity=Severity.MEDIUM,
-                    confidence=0.45,
-                    reason=(
-                        f"Found {len(cm_regions)} area(s) that resemble duplicates of "
-                        f"other parts of the SAME image, after discounting the regular "
-                        f"repeating structure a document normally contains. Cloning a "
-                        f"patch over an existing value is a common edit because it "
-                        f"preserves surrounding texture. Security backgrounds and "
-                        f"repeated layout can also trigger this, so confirm visually "
-                        f"before treating it as a finding."
-                    ),
-                    evidence={"duplicate_clusters": len(cm_regions)},
-                    regions=cm_regions,
-                )
-            )
-        else:
-            signals.append(
-                signal(
-                    code="forensics.copy_move.clean",
-                    stage=Stage.FORENSICS,
-                    title="Copy-move detection",
-                    status=SignalStatus.PASS,
-                    severity=Severity.INFO,
-                    reason="No duplicated regions were found within the image.",
-                )
-            )
-    except Exception as exc:
+        from app.ml.tamper_model import tamper_signals
+
+        signals.extend(tamper_signals(image_bytes))
+    except Exception as exc:  # noqa: BLE001 -- an optional model must not break forensics
         signals.append(
             signal(
-                code="forensics.copy_move.error",
+                code="forensics.learned.error",
                 stage=Stage.FORENSICS,
-                title="Copy-move detection",
+                title="Learned tampering detection",
                 status=SignalStatus.ERROR,
                 severity=Severity.LOW,
-                reason=f"Copy-move detection could not complete: {exc}",
+                reason=f"The learned tampering detector could not run: {exc}",
             )
         )
 
