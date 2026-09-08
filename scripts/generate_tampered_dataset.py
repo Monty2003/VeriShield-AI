@@ -44,11 +44,14 @@ import cv2
 import numpy as np
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
-DATASETS = REPO_ROOT / "backend" / "data" / "datasets"
+BACKEND = REPO_ROOT / "backend"
+sys.path.insert(0, str(BACKEND))
+
+DATASETS = BACKEND / "data" / "datasets"
 RAW_DIR = DATASETS / "raw"
 OUT_DIR = DATASETS / "generated"
 
-IMAGE_SUFFIXES = {".jpg", ".jpeg", ".png", ".JPG", ".JPEG", ".PNG"}
+IMAGE_SUFFIXES = {".jpg", ".jpeg", ".png", ".heic", ".heif", ".webp"}
 
 # Quality the "clean" reference copies are written at. Every clean and
 # tampered image is encoded at this SAME quality so that a detector cannot
@@ -61,6 +64,14 @@ BASE_QUALITY = 92
 # This is what gives the patch a different compression history from the page
 # around it -- the signal ELA is designed to find.
 SPLICE_QUALITY = 60
+
+# Phone photographs arrive around 3000x4000. Everything is normalised to this
+# long edge first, for two reasons: a full-size frame makes an edited field a
+# far smaller fraction of the image than any real forgery would be, and the
+# clean and tampered copies must be identical in every respect except the edit
+# -- including size -- or a detector can separate the classes without ever
+# looking at the tampering.
+MAX_WORKING_EDGE = 1600
 
 
 @dataclass
@@ -368,6 +379,52 @@ def tamper_inpaint_overwrite(
     )
 
 
+def tamper_cross_document_splice(
+    img: np.ndarray, regions: list[tuple], rng: random.Random, donor: np.ndarray | None = None
+) -> TamperResult | None:
+    """
+    Paste a text region taken from a DIFFERENT document.
+
+    This is what a real forgery does, and it differs from the same-image splice
+    in the way that matters most to compression forensics: the pasted pixels
+    carry another camera's sensor noise and another file's quantisation
+    history, not a second copy of this one's.
+
+    The distinction is not academic. Re-encoding a patch from the same photo
+    and pasting it back leaves both halves sharing an origin, and the final
+    save flattens what little difference remained -- which is precisely why the
+    first calibration run measured no separation at all. If these detectors can
+    see anything, they should see this.
+    """
+    if not regions or donor is None:
+        return None
+
+    x, y, w, h = rng.choice(regions)
+    donor_regions = find_text_regions(donor)
+    if not donor_regions:
+        return None
+
+    # Prefer a donor region of similar shape so the paste is not obvious to the
+    # eye -- a forger would choose one too.
+    donor_regions.sort(key=lambda r: abs(r[2] / max(r[3], 1) - w / max(h, 1)))
+    dx, dy, dw, dh = donor_regions[0]
+
+    patch = donor[dy : dy + dh, dx : dx + dw]
+    if patch.size == 0:
+        return None
+
+    out = img.copy()
+    out[y : y + h, x : x + w] = cv2.resize(patch, (w, h), interpolation=cv2.INTER_LANCZOS4)
+
+    return TamperResult(
+        image=out,
+        mask=_mask_for(img.shape, (x, y, w, h)),
+        operation="cross_document_splice",
+        bbox=(x, y, w, h),
+        note="text region transplanted from a different document",
+    )
+
+
 OPERATIONS = (
     tamper_text_splice,
     tamper_copy_move,
@@ -410,11 +467,25 @@ def generate(variants: int, seed: int, quiet: bool = False) -> Stats:
     manifest_path = OUT_DIR / "manifest.jsonl"
     records: list[dict] = []
 
+    from app.core.imaging import decode_image
+
     for index, (path, doc_type) in enumerate(sources):
-        img = cv2.imread(str(path), cv2.IMREAD_COLOR)
-        if img is None:
-            stats.skipped.append(f"{path.name}: could not be decoded")
+        try:
+            img = decode_image(path.read_bytes())
+        except Exception as exc:  # noqa: BLE001 -- one bad file must not stop the run
+            stats.skipped.append(f"{path.name}: could not be decoded ({exc})")
             continue
+
+        # Phone captures are ~3000x4000. Working at full size makes tampering
+        # slow and, more importantly, makes an edited field a vanishingly small
+        # fraction of the frame -- far smaller than any real forgery, which
+        # would understate what the detectors can find. Downscale to a size a
+        # document scan realistically arrives at.
+        if max(img.shape[:2]) > MAX_WORKING_EDGE:
+            scale = MAX_WORKING_EDGE / max(img.shape[:2])
+            img = cv2.resize(
+                img, None, fx=scale, fy=scale, interpolation=cv2.INTER_AREA
+            )
 
         stem = f"{doc_type}_{index:03d}"
 
@@ -451,7 +522,10 @@ def generate(variants: int, seed: int, quiet: bool = False) -> Stats:
         donor = None
         if len(sources) > 1:
             donor_path = sources[(index + 1) % len(sources)][0]
-            donor = cv2.imread(str(donor_path), cv2.IMREAD_COLOR)
+            try:
+                donor = decode_image(donor_path.read_bytes())
+            except Exception:  # noqa: BLE001 -- a missing donor just skips that op
+                donor = None
 
         operations = list(OPERATIONS)
         rng.shuffle(operations)
@@ -485,10 +559,38 @@ def generate(variants: int, seed: int, quiet: bool = False) -> Stats:
                     "label": "tampered",
                     "operation": result.operation,
                     "mask": f"masks/{mask_name}",
-                    "bbox": list(result.bbox),
+                    "bbox": [int(v) for v in result.bbox],
                     "note": result.note,
                 }
             )
+
+        # Cross-document splice needs a donor image, so it runs here rather
+        # than in the donor-free OPERATIONS loop.
+        if donor is not None:
+            if max(donor.shape[:2]) > MAX_WORKING_EDGE:
+                ds = MAX_WORKING_EDGE / max(donor.shape[:2])
+                donor = cv2.resize(donor, None, fx=ds, fy=ds, interpolation=cv2.INTER_AREA)
+            cross = tamper_cross_document_splice(img, regions, rng, donor)
+            if cross is not None:
+                name = f"{stem}_cross_document_splice.jpg"
+                mask_name = f"{stem}_cross_document_splice_mask.png"
+                cv2.imwrite(str(OUT_DIR / "tampered" / name), cross.image,
+                            [cv2.IMWRITE_JPEG_QUALITY, BASE_QUALITY])
+                cv2.imwrite(str(OUT_DIR / "masks" / mask_name), cross.mask)
+                stats.tampered_written += 1
+                stats.by_operation["cross_document_splice"] = (
+                    stats.by_operation.get("cross_document_splice", 0) + 1
+                )
+                records.append({
+                    "image": f"tampered/{name}",
+                    "source": str(path.relative_to(REPO_ROOT)).replace("\\", "/"),
+                    "doc_type": doc_type,
+                    "label": "tampered",
+                    "operation": "cross_document_splice",
+                    "mask": f"masks/{mask_name}",
+                    "bbox": [int(v) for v in cross.bbox],
+                    "note": cross.note,
+                })
 
         # Portrait substitution is attempted separately since it needs a donor
         # rather than a text region.
@@ -514,7 +616,7 @@ def generate(variants: int, seed: int, quiet: bool = False) -> Stats:
                     "label": "tampered",
                     "operation": "photo_substitution",
                     "mask": f"masks/{mask_name}",
-                    "bbox": list(substitution.bbox),
+                    "bbox": [int(v) for v in substitution.bbox],
                     "note": substitution.note,
                 }
             )

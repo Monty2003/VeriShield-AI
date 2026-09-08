@@ -149,6 +149,7 @@ class WeightedRiskModel:
 
         blocking = [s for s in signals if s.is_blocking_failure]
         blocking_reasons = [s.reason for s in blocking]
+        blocking_codes = [s.code for s in blocking]
 
         band = self._band(score, signals)
         decision = self._decide(band, confidence, blocked=bool(blocking))
@@ -160,6 +161,7 @@ class WeightedRiskModel:
             decision=decision,
             confidence=round(confidence, 3),
             top_reasons=reasons,
+            blocking_codes=blocking_codes,
             blocking_reasons=blocking_reasons,
             contributions=contributions,
             coverage=coverage,
@@ -253,6 +255,7 @@ def assess_case(
     document_risks: list[RiskAssessment],
     cross_document_signals: list[Signal],
     model: RiskModel | None = None,
+    satisfied_blocks: set[str] | None = None,
 ) -> RiskAssessment:
     """
     Score a whole case: several documents plus the cross-document evidence.
@@ -302,8 +305,21 @@ def assess_case(
     if _BAND_ORDER[worst_doc_band] > _BAND_ORDER[band]:
         band = worst_doc_band
 
-    case_blocked = any(s.is_blocking_failure for s in cross_document_signals) or any(
-        r.blocking_reasons for r in document_risks
+    # A block raised on one document can be answered by another document in
+    # the same case. The clearest example: a reverse-side image blocks with
+    # "submit the front as well" -- and if the front IS in the case, that has
+    # been done. Leaving the block standing would refuse a complete submission
+    # for being complete.
+    satisfied = satisfied_blocks or set()
+    outstanding = [
+        code
+        for risk in document_risks
+        for code in risk.blocking_codes
+        if code not in satisfied
+    ]
+
+    case_blocked = (
+        any(s.is_blocking_failure for s in cross_document_signals) or bool(outstanding)
     )
     decision = engine._decide(band, doc_confidence, blocked=case_blocked)
 

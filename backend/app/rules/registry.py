@@ -10,7 +10,10 @@ from __future__ import annotations
 
 from typing import Callable
 
+from app.rules.aadhaar import validate_aadhaar
+from app.rules.certificate import validate_certificate
 from app.rules.mrz import MRZData
+from app.rules.pan import validate_pan
 from app.rules.passport import validate_passport
 from app.schemas.document import DocumentType, ExtractedFields
 from app.schemas.signals import Severity, Signal, SignalStatus, Stage, signal
@@ -19,6 +22,9 @@ Validator = Callable[[MRZData | None, ExtractedFields | None], list[Signal]]
 
 _REGISTRY: dict[DocumentType, Validator] = {
     DocumentType.PASSPORT: validate_passport,
+    DocumentType.AADHAAR: validate_aadhaar,
+    DocumentType.PAN: validate_pan,
+    DocumentType.CERTIFICATE: validate_certificate,
 }
 
 

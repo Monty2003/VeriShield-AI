@@ -12,6 +12,9 @@ pydantic-settings==2.7.0
 opencv-python-headless==4.10.0.84
 numpy==1.26.4
 pillow==11.0.0
+# HEIC/HEIF. Modern phones shoot this by default; without it the service
+# cannot read the native format of most cameras its users hold.
+pillow-heif==0.21.0
 
 # Datastores (optional at runtime -- app degrades gracefully if absent)
 # pymongo is pinned transitively by motor -- do not pin it here, the ranges conflict

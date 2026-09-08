@@ -1,0 +1,47 @@
+{
+  "_comment": "Invented records for development and demonstration. NOT real people, NOT an authority. Loaded by SyntheticRegistry, which reports authoritative=false so a hit here can never be mistaken for confirmation by an issuer.",
+  "records": [
+    {
+      "document_type": "aadhaar",
+      "document_number": "234123412346",
+      "full_name": "DEMO HOLDER ONE",
+      "date_of_birth": "1995-06-15",
+      "status": "active",
+      "issued_on": "2015-03-10"
+    },
+    {
+      "document_type": "aadhaar",
+      "document_number": "999999990019",
+      "full_name": "DEMO HOLDER TWO",
+      "date_of_birth": "1988-11-02",
+      "status": "revoked",
+      "reason_code": "reported_lost",
+      "issued_on": "2012-07-21"
+    },
+    {
+      "document_type": "pan",
+      "document_number": "AAAPZ1234C",
+      "full_name": "DEMO ZAVERI",
+      "date_of_birth": "1990-01-20",
+      "status": "active",
+      "issued_on": "2016-05-30"
+    },
+    {
+      "document_type": "pan",
+      "document_number": "BBBPS5678D",
+      "full_name": "DEMO SHARMA",
+      "date_of_birth": "1985-09-09",
+      "status": "suspended",
+      "reason_code": "under_review",
+      "issued_on": "2014-02-14"
+    },
+    {
+      "document_type": "certificate",
+      "document_number": "22645310",
+      "full_name": "DEMO CANDIDATE",
+      "date_of_birth": "2005-04-11",
+      "status": "active",
+      "issued_on": "2023-07-01"
+    }
+  ]
+}

@@ -31,6 +31,23 @@ class DocumentType(str, Enum):
     UNKNOWN = "unknown"
 
 
+class DocumentSide(str, Enum):
+    """
+    Which face of a document an image shows.
+
+    Load-bearing, because people photograph both sides and only one of them
+    carries identity data. The reverse of an Indian PAN card holds nothing but
+    a return address; the back of a marksheet holds grading byelaws. Treating
+    those as failed extractions would report a capture that worked perfectly
+    as a defective document -- and treating them as sufficient would accept an
+    identity that was never actually shown.
+    """
+
+    FRONT = "front"
+    BACK = "back"
+    UNKNOWN = "unknown"
+
+
 class FieldConfidence(BaseModel):
     """
     A single extracted field with provenance.
@@ -83,6 +100,12 @@ class ExtractedFields(BaseModel):
     mrz_line1: FieldConfidence = Field(default_factory=FieldConfidence)
     mrz_line2: FieldConfidence = Field(default_factory=FieldConfidence)
 
+    # Full OCR text. Document types whose verifiable content is a TABLE rather
+    # than a fixed field set -- marksheets above all -- are validated against
+    # this directly, because their redundancy lives in the relationship between
+    # values (a total and the same total in words) rather than in any one field.
+    raw_text: FieldConfidence = Field(default_factory=FieldConfidence)
+
     def populated(self) -> dict[str, FieldConfidence]:
         """Only the fields that actually got a value -- for compact display."""
         return {
@@ -125,6 +148,11 @@ class RiskAssessment(BaseModel):
     top_reasons: list[str] = Field(
         default_factory=list, description="Ranked plain-language drivers of the score"
     )
+    blocking_codes: list[str] = Field(
+        default_factory=list,
+        description="Signal codes of the blocking failures, so a caller can "
+        "decide one has been answered elsewhere without matching prose.",
+    )
     blocking_reasons: list[str] = Field(
         default_factory=list,
         description="Hard validity failures that prevent acceptance regardless "
@@ -147,6 +175,7 @@ class DocumentAnalysis(BaseModel):
     filename: str
     document_type: DocumentType = DocumentType.UNKNOWN
     type_confidence: float = 0.0
+    side: DocumentSide = DocumentSide.UNKNOWN
 
     fields: ExtractedFields = Field(default_factory=ExtractedFields)
     signals: list[Signal] = Field(default_factory=list)
