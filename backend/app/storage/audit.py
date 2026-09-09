@@ -118,11 +118,12 @@ class AuditStore:
         try:
             from pymongo import MongoClient
 
+            timeout = settings.mongo_timeout_ms
             client = MongoClient(
                 self.url,
-                serverSelectionTimeoutMS=1500,
-                connectTimeoutMS=1500,
-                socketTimeoutMS=1500,
+                serverSelectionTimeoutMS=timeout,
+                connectTimeoutMS=timeout,
+                socketTimeoutMS=timeout,
             )
             client.admin.command("ping")
             self._client = client

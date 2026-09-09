@@ -1,0 +1,141 @@
+/* Fonts first -- an @import after any rule is invalid CSS and PostCSS drops
+   it silently, which is exactly how a theme ends up rendering in Arial. */
+@import url("https://fonts.googleapis.com/css2?family=Orbitron:wght@500;700;900&family=Rajdhani:wght@400;500;600;700&family=Fira+Code:wght@400;500;600&display=swap");
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  color-scheme: dark;
+  /* The accent, as raw channels so Tailwind can apply its own alpha.
+     Changing this one line re-themes everything that reads cyber-cyan. */
+  --accent: 0 240 255;
+}
+
+/* Set by lib/preferences.ts on <html>. */
+[data-accent="magenta"] { --accent: 255 0 255; }
+[data-accent="green"]   { --accent: 0 255 159; }
+
+/* Motion off is a real setting, not a decoration: constant glow and scanline
+   animation is genuinely hard to read for some people, and this is also what
+   prefers-reduced-motion should get. */
+[data-motion="off"] *,
+[data-motion="off"] *::before,
+[data-motion="off"] *::after {
+  animation: none !important;
+  transition: none !important;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation: none !important;
+    transition: none !important;
+  }
+}
+
+/* Density scales the root font size, so every rem-based Tailwind spacing
+   utility tightens at once rather than needing a compact variant each. */
+[data-density="compact"] { font-size: 87.5%; }
+body {
+  @apply bg-ink-900 text-slate-200 antialiased font-sans;
+  margin: 0;
+  overflow-x: hidden;
+}
+
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-track { @apply bg-ink-900; }
+::-webkit-scrollbar-thumb { @apply bg-cyber-cyan/30 rounded; }
+::-webkit-scrollbar-thumb:hover { @apply bg-cyber-cyan/60; }
+
+@layer components {
+  /* High-tech HUD panel style */
+  .card {
+    @apply rounded-none border border-cyber-cyan/30 bg-ink-800/80 backdrop-blur-md relative;
+    box-shadow: 0 0 10px rgb(var(--accent)/0.05), inset 0 0 20px rgb(var(--accent)/0.02);
+  }
+  
+  /* Cyberpunk corners */
+  .card::before, .card::after {
+    content: '';
+    position: absolute;
+    width: 10px;
+    height: 10px;
+    border: 2px solid transparent;
+    transition: all 0.3s ease;
+  }
+  .card::before {
+    top: -1px; left: -1px;
+    border-top-color: rgb(var(--accent));
+    border-left-color: rgb(var(--accent));
+  }
+  .card::after {
+    bottom: -1px; right: -1px;
+    border-bottom-color: rgb(var(--accent));
+    border-right-color: rgb(var(--accent));
+  }
+
+  .btn {
+    @apply inline-flex items-center justify-center gap-2 px-6 py-2.5
+           text-sm font-bold uppercase tracking-widest transition-all duration-300
+           disabled:cursor-not-allowed disabled:opacity-40 relative overflow-hidden;
+    clip-path: polygon(10px 0, 100% 0, 100% calc(100% - 10px), calc(100% - 10px) 100%, 0 100%, 0 10px);
+  }
+  
+  .btn-primary { 
+    @apply bg-cyber-cyan text-ink-900 hover:bg-white hover:shadow-[0_0_15px_rgb(var(--accent)/0.8)]; 
+  }
+  .btn-ghost { 
+    @apply border-2 border-cyber-cyan/50 text-cyber-cyan bg-cyber-cyan/5 
+           hover:border-cyber-cyan hover:bg-cyber-cyan/20 hover:shadow-[0_0_10px_rgb(var(--accent)/0.3)]; 
+  }
+  .btn-danger { 
+    @apply bg-verdict-reject/10 border-2 border-verdict-reject/50 text-verdict-reject 
+           hover:bg-verdict-reject/20 hover:border-verdict-reject hover:shadow-[0_0_15px_rgba(255,0,60,0.5)]; 
+  }
+
+  .input {
+    @apply w-full rounded-none border-b-2 border-l-2 border-r-0 border-t-0 border-cyber-cyan/30 
+           bg-ink-900/50 px-4 py-2.5 text-sm font-mono
+           text-cyber-cyan placeholder-cyber-cyan/30 outline-none transition-all duration-300
+           focus:border-cyber-cyan focus:bg-ink-800/80 focus:shadow-[inset_0_-2px_10px_rgb(var(--accent)/0.1)];
+  }
+  
+  .label {
+    @apply mb-2 block font-display text-[10px] uppercase tracking-[0.3em] text-cyber-cyan/70;
+  }
+
+  .chip {
+    @apply inline-flex items-center gap-1.5 rounded-none px-3 py-1
+           font-mono text-[10px] font-bold uppercase tracking-widest border border-current;
+  }
+
+  .section-title {
+    @apply font-display text-[14px] uppercase tracking-[0.25em] text-cyber-cyan font-bold flex items-center gap-2;
+  }
+  .section-title::before {
+    content: '>';
+    @apply text-cyber-magenta animate-pulse;
+  }
+}
+
+@layer utilities {
+  .bg-grid {
+    background-image:
+      linear-gradient(rgb(var(--accent)/0.07) 1px, transparent 1px),
+      linear-gradient(90deg, rgb(var(--accent)/0.07) 1px, transparent 1px);
+    background-size: 30px 30px;
+    position: relative;
+  }
+  .bg-grid::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(to bottom, transparent 50%, rgb(var(--accent)/0.02) 51%);
+    background-size: 100% 4px;
+    pointer-events: none;
+    z-index: 0;
+  }
+  .scrollbar-none { scrollbar-width: none; }
+  .scrollbar-none::-webkit-scrollbar { display: none; }
+}

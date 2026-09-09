@@ -21,7 +21,10 @@ discovered in production.
 
 from __future__ import annotations
 
-from fastapi import APIRouter, File, HTTPException, UploadFile
+from fastapi import APIRouter, Depends, File, HTTPException, UploadFile
+
+from app.core.auth import rate_limit, requires
+from app.core.users import User
 
 from app.pipeline.stages.liveness import (
     Challenge,
@@ -57,8 +60,11 @@ def _get(session_id: str) -> LivenessSession:
     return session
 
 
-@router.post("/liveness/start")
-def liveness_start(challenge: Challenge | None = None) -> dict[str, object]:
+@router.post("/liveness/start", dependencies=[Depends(rate_limit("liveness"))])
+def liveness_start(
+    challenge: Challenge | None = None,
+    _user: User = Depends(requires("verify:submit")),
+) -> dict[str, object]:
     """
     Open a liveness session.
 
@@ -82,9 +88,14 @@ def liveness_start(challenge: Challenge | None = None) -> dict[str, object]:
     }
 
 
-@router.post("/liveness/{session_id}/frame")
+@router.post(
+    "/liveness/{session_id}/frame",
+    dependencies=[Depends(rate_limit("liveness"))],
+)
 async def liveness_frame(
-    session_id: str, file: UploadFile = File(..., description="One camera frame")
+    session_id: str,
+    file: UploadFile = File(..., description="One camera frame"),
+    _user: User = Depends(requires("verify:submit")),
 ) -> dict[str, object]:
     """Submit one frame. Returns what was observed, so a UI can guide the user."""
     session = _get(session_id)
@@ -115,7 +126,9 @@ async def liveness_frame(
 
 
 @router.post("/liveness/{session_id}/complete")
-def liveness_complete(session_id: str) -> dict[str, object]:
+def liveness_complete(
+    session_id: str, _user: User = Depends(requires("verify:submit"))
+) -> dict[str, object]:
     """Evaluate the session and return the verdict with its reasoning."""
     session = _get(session_id)
     signals = evaluate(session)

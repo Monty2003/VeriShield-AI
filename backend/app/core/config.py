@@ -30,6 +30,17 @@ class Settings(BaseSettings):
     # 27018, not 27017 -- see the port comment in docker-compose.yml.
     mongo_url: str = "mongodb://localhost:27018"
     mongo_db: str = "verishield"
+
+    # How long to give MongoDB before declaring it unreachable.
+    #
+    # This was 1500 ms hard-coded in both stores, which was right for the
+    # local container this project started with -- that connects in about
+    # 50 ms. Atlas does not: mongodb+srv means a DNS SRV lookup, then TLS,
+    # then a handshake with a remote replica set, measured here at 4.4
+    # seconds cold. Under the old budget the first request after every
+    # restart failed and reported the database as down when it was merely
+    # far away, which is a much more alarming thing to tell an operator.
+    mongo_timeout_ms: int = 8000
     redis_url: str = "redis://localhost:6379/0"
     qdrant_url: str = "http://localhost:6333"
 
@@ -46,6 +57,24 @@ class Settings(BaseSettings):
     use_gpu: bool = True
     max_resident_models: int = 1
     ocr_lang: str = "en"
+
+    # --- security ---
+    # Origins allowed to call this API from a browser. The Vite dev server by
+    # default; a deployment must set VERISHIELD_CORS_ORIGINS to its real front
+    # end. Wildcards are refused at startup rather than accepted quietly --
+    # "*" with credentials enabled is the configuration that turns any site a
+    # user visits into a client of this API.
+    cors_origins: str = "http://localhost:5173,http://127.0.0.1:5173,http://localhost:3000,http://127.0.0.1:3000"
+    
+    jwt_secret: str = ""
+
+    # False in a real deployment. When true, /docs is served and errors carry
+    # detail; when false, both are withheld.
+    debug_api: bool = True
+
+    @property
+    def cors_origin_list(self) -> list[str]:
+        return [o.strip() for o in self.cors_origins.split(",") if o.strip()]
 
     # --- risk thresholds (mirrored in app/risk/engine.py defaults) ---
     risk_medium_threshold: float = 30.0

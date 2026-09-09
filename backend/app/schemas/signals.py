@@ -135,12 +135,24 @@ class Signal(BaseModel):
         contents was verified either, so approving it would mean approving a
         document the system never actually checked.
 
+        WARN blocks too, and leaving it out was a bug. Three signals set
+        `blocking` on a WARN -- an uncertain face match, an unrecognised
+        certificate issuer, and the reverse side of a document -- and each one
+        exists precisely because the check did NOT come out clean enough to
+        accept on. A face similarity sitting between the thresholds is the
+        clearest case: the band is there to route the document to a person, and
+        a rule that ignored it handed exactly those documents an automatic
+        accept, because a WARN scores few points and a low score reads as fine.
+        That is the failure this whole mechanism was built to prevent.
+
         SKIP deliberately does not block. A check that did not apply is not a
-        gap in the evidence; it is a check that was never owed.
+        gap in the evidence; it is a check that was never owed. Neither does
+        PASS: a passing check is the evidence, not a gap in it.
         """
         return self.blocking and self.status in (
             SignalStatus.FAIL,
             SignalStatus.ERROR,
+            SignalStatus.WARN,
         )
 
     @property

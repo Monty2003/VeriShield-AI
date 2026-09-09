@@ -22,3 +22,11 @@ backend/data/datasets/external/**
 !backend/data/datasets/**/.gitkeep
 !backend/data/datasets/**/README.md
 backend/data/samples/synthetic/
+
+# --- Frontend -------------------------------------------------------------
+# .env alone matches only a file named exactly that, so the local override
+# CRA reads has to be listed by name. The committed .env.development and
+# .env.production hold no secrets and stay in the repo.
+.env.local
+.env.*.local
+frontend/build/
