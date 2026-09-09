@@ -248,6 +248,31 @@ export interface RecentCasesResponse {
   cases: Record<string, unknown>[];
 }
 
+/**
+ * A stored single-document assessment.
+ *
+ * Shaped like DocumentAnalysis but without `signals` -- the listing endpoint
+ * projects those out -- plus the two fields the audit store adds on write.
+ */
+export interface RecordedDocument {
+  document_id?: string;
+  filename?: string;
+  document_type?: DocumentType;
+  side?: DocumentSide;
+  type_confidence?: number;
+  risk?: RiskAssessment | null;
+  fingerprint?: string | null;
+  recorded_at?: string;
+  created_at?: string;
+  processing_ms?: Record<string, number>;
+}
+
+export interface RecentDocumentsResponse {
+  available: boolean;
+  reason?: string;
+  documents: RecordedDocument[];
+}
+
 export interface DocumentHistoryResponse {
   available: boolean;
   submissions: Record<string, unknown>[];

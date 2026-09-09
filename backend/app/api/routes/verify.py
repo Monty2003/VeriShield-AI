@@ -437,6 +437,32 @@ def recent_cases(
     return {"available": True, "cases": audit_store.recent_cases(limit)}
 
 
+@router.get("/documents/recent")
+def recent_documents(
+    limit: int = 20, _user: User = Depends(requires("audit:read"))
+) -> dict[str, object]:
+    """
+    Recent single-document assessments from the audit trail.
+
+    Declared before /documents/{fingerprint}/history on purpose: FastAPI
+    matches routes in order, and "recent" would otherwise be swallowed by the
+    path parameter and looked up as a fingerprint that does not exist.
+
+    Identifiers are masked at write time, so this is safe to show a reviewer
+    without handing back the numbers themselves.
+    """
+    if not audit_store.available:
+        return {
+            "available": False,
+            "reason": (
+                "The audit store is unreachable, so no history is available. "
+                "Verifications still run; they are simply not being recorded."
+            ),
+            "documents": [],
+        }
+    return {"available": True, "documents": audit_store.recent_documents(limit)}
+
+
 @router.get("/documents/{fingerprint}/history")
 def document_history(
     fingerprint: str, _user: User = Depends(requires("audit:read"))

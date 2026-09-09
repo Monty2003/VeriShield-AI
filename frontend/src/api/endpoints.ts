@@ -15,6 +15,7 @@ import type {
   LivenessFrameResponse,
   LivenessStartResponse,
   RecentCasesResponse,
+  RecentDocumentsResponse,
   Role,
   Signal,
   TokenResponse,
@@ -191,6 +192,20 @@ export async function verifyMrz(
 
 export async function recentCases(limit = 20): Promise<RecentCasesResponse> {
   const { data } = await api.get<RecentCasesResponse>(`${V1}/cases/recent`, {
+    params: { limit },
+  });
+  return data;
+}
+
+/**
+ * Recent single-document assessments.
+ *
+ * Separate collection from cases: /verify/document writes here, /verify/case
+ * writes to cases. Listing only the latter made every single-document
+ * verification invisible in the audit trail.
+ */
+export async function recentDocuments(limit = 20): Promise<RecentDocumentsResponse> {
+  const { data } = await api.get<RecentDocumentsResponse>(`${V1}/documents/recent`, {
     params: { limit },
   });
   return data;

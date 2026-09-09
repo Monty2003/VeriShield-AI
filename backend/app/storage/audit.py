@@ -202,6 +202,34 @@ class AuditStore:
         except Exception:  # noqa: BLE001
             return []
 
+    def recent_documents(self, limit: int = 20) -> list[dict]:
+        """
+        Recent single-document assessments.
+
+        These were being recorded and had nowhere to be read from: only cases
+        had a listing, and a case is written solely by /verify/case. Verifying
+        one document -- much the commonest action -- therefore produced an
+        audit record that nothing could show, which defeats the purpose of
+        keeping one.
+
+        `signals` is projected out. A document carries twenty or more, each
+        with its own evidence payload, and a list view needs none of them --
+        risk.top_reasons already says why. The full record is a fingerprint
+        lookup away.
+        """
+        client = self._connect()
+        if client is None:
+            return []
+        try:
+            return list(
+                client[self.database]["documents"]
+                .find({}, {"_id": 0, "signals": 0})
+                .sort("recorded_at", -1)
+                .limit(limit)
+            )
+        except Exception:  # noqa: BLE001
+            return []
+
 
 class ObjectStore:
     """
