@@ -1,0 +1,26 @@
+# ML stack for a CPU server. Install AFTER requirements.txt:
+#
+#   pip install -r requirements.txt -r requirements-deploy.txt
+#
+# This is not requirements-ml.txt. That file is the development stack and it
+# pins GPU builds -- paddlepaddle-gpu and onnxruntime-gpu -- which cannot be
+# installed on a Render instance and would fail the build outright. It also
+# carries torch, ultralytics, transformers, timm and scikit-image, none of
+# which the running service imports:
+#
+#   torch/torchvision  -> app/ml/tamper_model.py only, and that detector is
+#                         switched off after calibration measured it at chance
+#   ultralytics        -> scripts only
+#   transformers, timm -> scripts only
+#   scikit-image       -> scripts only
+#
+# Dropping them removes roughly 1.5 GB of build output for capability the
+# deployed service does not use.
+
+# OCR (Layer 3). CPU build.
+paddlepaddle==2.6.2
+paddleocr==2.9.1
+
+# Face detection + recognition (Layer 6). CPU build.
+insightface==0.7.3
+onnxruntime==1.20.1

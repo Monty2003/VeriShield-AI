@@ -7,8 +7,15 @@
 # reason. Install the CUDA 12.1 torch build:
 #   pip install torch torchvision --index-url https://download.pytorch.org/whl/cu121
 
-torch==2.5.1
-torchvision==0.20.1
+# torch/torchvision are NOT installed by default.
+#
+# They are needed only to TRAIN and run the patch-level tampering model
+# (scripts/train_tamper_detector.py). That model measured as a reviewer aid
+# rather than a detector -- it contributes nothing to any risk score -- so a
+# deployment pays 544 MB for an overlay it may never show.
+#
+# Install them only if you intend to retrain or use that overlay:
+#   pip install torch torchvision --index-url https://download.pytorch.org/whl/cpu
 
 # OCR (Layer 3). PaddleOCR also supplies PP-Structure for layout analysis.
 paddlepaddle-gpu==2.6.2

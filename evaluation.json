@@ -1,0 +1,318 @@
+{
+  "documents": [
+    {
+      "file": "20260907_193521.heic",
+      "truth": "aadhaar",
+      "predicted": "aadhaar",
+      "correct": true,
+      "side": "front",
+      "type_confidence": 1.0,
+      "risk": 0.8,
+      "decision": "accept",
+      "evidence_confidence": 1.0
+    },
+    {
+      "file": "20260907_193542.heic",
+      "truth": "aadhaar",
+      "predicted": "aadhaar",
+      "correct": true,
+      "side": "front",
+      "type_confidence": 1.0,
+      "risk": 0.8,
+      "decision": "accept",
+      "evidence_confidence": 1.0
+    },
+    {
+      "file": "20260907_193550.heic",
+      "truth": "aadhaar",
+      "predicted": "aadhaar",
+      "correct": true,
+      "side": "back",
+      "type_confidence": 1.0,
+      "risk": 11.3,
+      "decision": "manual_review",
+      "evidence_confidence": 0.8
+    },
+    {
+      "file": "20260907_193704.heic",
+      "truth": "aadhaar",
+      "predicted": "aadhaar",
+      "correct": true,
+      "side": "back",
+      "type_confidence": 1.0,
+      "risk": 6.6,
+      "decision": "manual_review",
+      "evidence_confidence": 0.8
+    },
+    {
+      "file": "20260907_194130.heic",
+      "truth": "aadhaar",
+      "predicted": "aadhaar",
+      "correct": true,
+      "side": "front",
+      "type_confidence": 0.55,
+      "risk": 0.8,
+      "decision": "accept",
+      "evidence_confidence": 1.0
+    },
+    {
+      "file": "20260907_194136.heic",
+      "truth": "aadhaar",
+      "predicted": "aadhaar",
+      "correct": true,
+      "side": "front",
+      "type_confidence": 0.85,
+      "risk": 5.8,
+      "decision": "accept",
+      "evidence_confidence": 1.0
+    },
+    {
+      "file": "20260907_194142.heic",
+      "truth": "aadhaar",
+      "predicted": "aadhaar",
+      "correct": true,
+      "side": "front",
+      "type_confidence": 1.0,
+      "risk": 0.8,
+      "decision": "accept",
+      "evidence_confidence": 1.0
+    },
+    {
+      "file": "20260907_194147.heic",
+      "truth": "aadhaar",
+      "predicted": "aadhaar",
+      "correct": true,
+      "side": "back",
+      "type_confidence": 1.0,
+      "risk": 6.6,
+      "decision": "manual_review",
+      "evidence_confidence": 0.8
+    },
+    {
+      "file": "20260907_194157.heic",
+      "truth": "aadhaar",
+      "predicted": "aadhaar",
+      "correct": true,
+      "side": "front",
+      "type_confidence": 1.0,
+      "risk": 0.8,
+      "decision": "accept",
+      "evidence_confidence": 1.0
+    },
+    {
+      "file": "20260907_194201.heic",
+      "truth": "aadhaar",
+      "predicted": "aadhaar",
+      "correct": true,
+      "side": "back",
+      "type_confidence": 1.0,
+      "risk": 6.6,
+      "decision": "manual_review",
+      "evidence_confidence": 0.8
+    },
+    {
+      "file": "20260907_194208.heic",
+      "truth": "aadhaar",
+      "predicted": "aadhaar",
+      "correct": true,
+      "side": "front",
+      "type_confidence": 0.75,
+      "risk": 0.8,
+      "decision": "accept",
+      "evidence_confidence": 1.0
+    },
+    {
+      "file": "20260907_194215.heic",
+      "truth": "aadhaar",
+      "predicted": "aadhaar",
+      "correct": true,
+      "side": "back",
+      "type_confidence": 1.0,
+      "risk": 6.6,
+      "decision": "manual_review",
+      "evidence_confidence": 0.8
+    },
+    {
+      "file": "20260907_194224.heic",
+      "truth": "aadhaar",
+      "predicted": "aadhaar",
+      "correct": true,
+      "side": "front",
+      "type_confidence": 1.0,
+      "risk": 0.8,
+      "decision": "accept",
+      "evidence_confidence": 1.0
+    },
+    {
+      "file": "20260907_194230.heic",
+      "truth": "aadhaar",
+      "predicted": "aadhaar",
+      "correct": true,
+      "side": "back",
+      "type_confidence": 1.0,
+      "risk": 6.6,
+      "decision": "manual_review",
+      "evidence_confidence": 0.8
+    },
+    {
+      "file": "20260907_194335.heic",
+      "truth": "aadhaar",
+      "predicted": "aadhaar",
+      "correct": true,
+      "side": "front",
+      "type_confidence": 1.0,
+      "risk": 0.8,
+      "decision": "accept",
+      "evidence_confidence": 1.0
+    },
+    {
+      "file": "20260907_194351.heic",
+      "truth": "aadhaar",
+      "predicted": "aadhaar",
+      "correct": true,
+      "side": "back",
+      "type_confidence": 1.0,
+      "risk": 6.6,
+      "decision": "manual_review",
+      "evidence_confidence": 0.8
+    },
+    {
+      "file": "20260907_234214.heic",
+      "truth": "certificate",
+      "predicted": "certificate",
+      "correct": true,
+      "side": "front",
+      "type_confidence": 0.7,
+      "risk": 15.8,
+      "decision": "accept",
+      "evidence_confidence": 1.0
+    },
+    {
+      "file": "20260907_234231.heic",
+      "truth": "certificate",
+      "predicted": "certificate",
+      "correct": true,
+      "side": "back",
+      "type_confidence": 0.65,
+      "risk": 6.6,
+      "decision": "manual_review",
+      "evidence_confidence": 0.8
+    },
+    {
+      "file": "20260907_234315.heic",
+      "truth": "certificate",
+      "predicted": "certificate",
+      "correct": true,
+      "side": "front",
+      "type_confidence": 1.0,
+      "risk": 15.8,
+      "decision": "accept",
+      "evidence_confidence": 1.0
+    },
+    {
+      "file": "20260907_234324.heic",
+      "truth": "certificate",
+      "predicted": "unknown",
+      "correct": false,
+      "side": "unknown",
+      "type_confidence": 0.4,
+      "risk": 16.6,
+      "decision": "manual_review",
+      "evidence_confidence": 1.0
+    },
+    {
+      "file": "20260907_193601.heic",
+      "truth": "pan",
+      "predicted": "pan",
+      "correct": true,
+      "side": "front",
+      "type_confidence": 1.0,
+      "risk": 0.8,
+      "decision": "accept",
+      "evidence_confidence": 1.0
+    },
+    {
+      "file": "20260907_193616.heic",
+      "truth": "pan",
+      "predicted": "pan",
+      "correct": true,
+      "side": "back",
+      "type_confidence": 0.8,
+      "risk": 6.6,
+      "decision": "manual_review",
+      "evidence_confidence": 0.8
+    },
+    {
+      "file": "20260907_193630.heic",
+      "truth": "pan",
+      "predicted": "pan",
+      "correct": true,
+      "side": "front",
+      "type_confidence": 1.0,
+      "risk": 0.8,
+      "decision": "accept",
+      "evidence_confidence": 1.0
+    },
+    {
+      "file": "20260907_193639.heic",
+      "truth": "pan",
+      "predicted": "pan",
+      "correct": true,
+      "side": "back",
+      "type_confidence": 0.8,
+      "risk": 6.6,
+      "decision": "manual_review",
+      "evidence_confidence": 0.8
+    },
+    {
+      "file": "20260907_194239.heic",
+      "truth": "pan",
+      "predicted": "pan",
+      "correct": true,
+      "side": "front",
+      "type_confidence": 1.0,
+      "risk": 0.8,
+      "decision": "accept",
+      "evidence_confidence": 1.0
+    },
+    {
+      "file": "20260907_194247.heic",
+      "truth": "pan",
+      "predicted": "pan",
+      "correct": true,
+      "side": "back",
+      "type_confidence": 0.8,
+      "risk": 6.6,
+      "decision": "manual_review",
+      "evidence_confidence": 0.8
+    },
+    {
+      "file": "20260907_194426.heic",
+      "truth": "pan",
+      "predicted": "pan",
+      "correct": true,
+      "side": "front",
+      "type_confidence": 1.0,
+      "risk": 0.8,
+      "decision": "accept",
+      "evidence_confidence": 1.0
+    },
+    {
+      "file": "20260907_194433.heic",
+      "truth": "pan",
+      "predicted": "pan",
+      "correct": true,
+      "side": "back",
+      "type_confidence": 0.8,
+      "risk": 6.6,
+      "decision": "manual_review",
+      "evidence_confidence": 0.8
+    }
+  ],
+  "classification_accuracy": 0.9642857142857143,
+  "decisions": {
+    "accept": 15,
+    "manual_review": 13
+  },
+  "elapsed_seconds": 155.26
+}

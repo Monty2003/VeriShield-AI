@@ -194,7 +194,13 @@ class InsightFaceProvider:
                 if self.use_gpu
                 else ["CPUExecutionProvider"]
             )
-            app = FaceAnalysis(name="buffalo_l", providers=providers)
+            # genderage is excluded: this system has no business inferring
+            # anyone's age or gender from their face, and nothing here reads it.
+            app = FaceAnalysis(
+                name="buffalo_l",
+                providers=providers,
+                allowed_modules=["detection", "landmark_2d_106", "landmark_3d_68", "recognition"],
+            )
             app.prepare(ctx_id=0 if self.use_gpu else -1, det_size=(640, 640))
             self._app = app
         return self._app

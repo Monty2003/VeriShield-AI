@@ -1,0 +1,79 @@
+# Render blueprint for the VeriShield API.
+#
+# Committed as the LITE profile: no OCR, no face models. That is a deliberate
+# default, not an oversight -- see the memory note below before changing it.
+#
+# On the lite profile the service still runs the whole rule and risk stack:
+# Aadhaar Verhoeff checksums, PAN format and surname cross-checks, marksheet
+# arithmetic, MRZ check digits, date validity, the registry lookup and the risk
+# engine. /health reports OCR and face recognition as unavailable, and the
+# dashboard renders that honestly rather than showing empty results.
+#
+# What does NOT work on lite: reading text off an image, and the face match.
+# Both need the model stack, and the model stack needs memory the free plan
+# does not have.
+#
+# ---- memory ----------------------------------------------------------------
+# Measured locally, a single document through the full pipeline peaks around
+# 933 MB resident: PaddleOCR plus five buffalo_l ONNX models. Render's free and
+# starter plans both cap at 512 MB, so the full stack is killed by the OOM
+# reaper partway through the first request -- which looks like a mysterious
+# 502, not like a capacity problem.
+#
+# To run the full stack, move to a 2 GB instance and swap the two marked lines:
+#
+#   plan: standard
+#   buildCommand: pip install -r requirements.txt -r requirements-deploy.txt
+#
+# Note that requirements-ml.txt is the DEVELOPMENT stack and pins GPU builds
+# (paddlepaddle-gpu, onnxruntime-gpu). It cannot be installed here.
+
+services:
+  - type: web
+    name: verishield-api
+    runtime: python
+    plan: free # <-- change to `standard` for the full model stack
+    region: singapore
+    rootDir: backend
+
+    # <-- add `-r requirements-deploy.txt` here for the full model stack
+    buildCommand: pip install -r requirements.txt
+    startCommand: uvicorn app.main:app --host 0.0.0.0 --port $PORT
+
+    healthCheckPath: /health
+
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.11.4
+
+      # Secrets. `sync: false` means Render asks for the value on first deploy
+      # and stores it encrypted, rather than it living in this file -- anyone
+      # holding the signing key can mint valid tokens for this API.
+      - key: VERISHIELD_JWT_SECRET
+        sync: false
+      - key: VERISHIELD_MONGO_URL
+        sync: false
+
+      - key: VERISHIELD_MONGO_DB
+        value: verishield
+
+      # The front end's real origin. main.py refuses "*" at startup rather than
+      # accepting it quietly: a wildcard with credentials turns every site a
+      # user visits into a client of this API.
+      - key: VERISHIELD_CORS_ORIGINS
+        sync: false
+
+      # Atlas is a network hop away, not a container on localhost. The default
+      # already accounts for that; raise it if cold connects still time out.
+      - key: VERISHIELD_MONGO_TIMEOUT_MS
+        value: 8000
+
+      - key: VERISHIELD_USE_GPU
+        value: false
+
+      # Withholds /docs and strips detail from error responses. Set to true
+      # while demonstrating if you want the interactive API page.
+      - key: VERISHIELD_DEBUG_API
+        value: false
+      - key: VERISHIELD_DEBUG
+        value: false

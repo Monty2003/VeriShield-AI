@@ -48,17 +48,35 @@ Reads every image under `backend/data/datasets/raw/<type>/`, treats the folder
 name as the ground-truth label, and reports accuracy, extraction rates,
 decision distribution, confidence calibration and per-stage timings.
 
-## Data layer (optional)
+## Data layer
 
-Start Docker Desktop first, then from the repo root:
+There is no Docker Compose file. MongoDB Atlas is used for local development as
+well as production, so the connection string is the only difference between the
+two and there is no second setup to keep working.
 
-```powershell
-docker compose up -d
-docker compose ps
+Put your cluster's URI in `backend/.env`:
+
+```
+VERISHIELD_MONGO_URL=mongodb+srv://USER:PASSWORD@CLUSTER/?retryWrites=true&w=majority
+VERISHIELD_MONGO_DB=verishield
 ```
 
-Without it the pipeline still verifies documents; it just keeps no audit trail.
-`/health` says so explicitly.
+Then create the first admin, which also generates the JWT signing key:
+
+```
+cd backend
+.venv/Scripts/python.exe ../scripts/bootstrap_admin.py
+```
+
+Without that key the server refuses to issue or accept tokens -- there is
+deliberately no default.
+
+Without a reachable database the pipeline still verifies documents; it keeps no
+audit trail and refuses every authenticated request, and `/health` says both.
+
+Object storage (retaining submitted images) is optional. Point
+`VERISHIELD_MINIO_ENDPOINT` at any S3-compatible service, or leave it unset and
+images are simply not retained.
 
 ## Regenerating the tamper dataset
 

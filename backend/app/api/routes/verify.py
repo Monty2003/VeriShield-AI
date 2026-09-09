@@ -4,10 +4,14 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from fastapi import APIRouter, File, Form, HTTPException, UploadFile
+from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile
 
+from app.core.auth import current_user, rate_limit, requires
 from app.core.config import settings
+from app.core.security import has_permission
+from app.core.users import User
 from app.pipeline.orchestrator import analyze_document, verify_case
+from app.pipeline.stages import face as face_stage
 from app.pipeline.stages.ocr import InjectedTextProvider
 from app.registry.authority import SyntheticRegistry
 from app.risk.engine import assess_document
@@ -98,8 +102,13 @@ def _persist(analysis: DocumentAnalysis, data: bytes) -> None:
     object_store.put(f"documents/{analysis.document_id}", data)
 
 
-@router.post("/verify/document", response_model=DocumentAnalysis)
+@router.post(
+    "/verify/document",
+    response_model=DocumentAnalysis,
+    dependencies=[Depends(rate_limit("verify"))],
+)
 async def verify_document(
+    user: User = Depends(requires("verify:submit")),
     file: UploadFile = File(..., description="Document image (JPEG, PNG or HEIC)"),
     declared_type: DocumentType | None = Form(
         None, description="Skip classification and apply this type's rulebook directly."
@@ -143,11 +152,30 @@ async def verify_document(
     # Persist BEFORE masking: the audit store applies its own redaction, and
     # the validators upstream have already used the real value.
     _persist(analysis, data)
+    # Unmasking is a privilege, not a parameter. An operator asking for it
+    # gets the masked response anyway -- and is told why, rather than being
+    # left to wonder whether the flag works. This is the one place where the
+    # role boundary maps onto a decision the code was already making.
+    if reveal_identifiers and not has_permission(user.role, "verify:reveal_identifiers"):
+        raise HTTPException(
+            status_code=403,
+            detail=(
+                "Returning identity numbers in full needs the "
+                "'verify:reveal_identifiers' permission, which the "
+                f"'{user.role.value}' role does not hold. Re-send without "
+                "reveal_identifiers to receive the masked result."
+            ),
+        )
     return analysis if reveal_identifiers else _mask_identifiers(analysis)
 
 
-@router.post("/verify/case", response_model=VerificationResult)
+@router.post(
+    "/verify/case",
+    response_model=VerificationResult,
+    dependencies=[Depends(rate_limit("verify"))],
+)
 async def verify_documents(
+    user: User = Depends(requires("verify:submit")),
     files: list[UploadFile] = File(..., description="One or more documents"),
     selfie: UploadFile | None = File(
         None,
@@ -189,13 +217,26 @@ async def verify_documents(
         _persist(analysis, data)
     audit_store.record_case(result)
 
+    if reveal_identifiers and not has_permission(user.role, "verify:reveal_identifiers"):
+        raise HTTPException(
+            status_code=403,
+            detail=(
+                "Returning identity numbers in full needs the "
+                "'verify:reveal_identifiers' permission, which the "
+                f"'{user.role.value}' role does not hold."
+            ),
+        )
     if not reveal_identifiers:
         result.documents = [_mask_identifiers(d) for d in result.documents]
     return result
 
 
-@router.post("/verify/mrz")
-def verify_mrz_lines(line1: str = Form(...), line2: str = Form(...)) -> dict[str, object]:
+@router.post("/verify/mrz", dependencies=[Depends(rate_limit("verify"))])
+def verify_mrz_lines(
+    line1: str = Form(...),
+    line2: str = Form(...),
+    _user: User = Depends(requires("verify:submit")),
+) -> dict[str, object]:
     """
     Validate MRZ lines directly, with no image.
 
@@ -242,8 +283,142 @@ def verify_mrz_lines(line1: str = Form(...), line2: str = Form(...)) -> dict[str
     }
 
 
+class _MemoFaceProvider:
+    """
+    Caches analyse-by-content so one image is never run through the model twice.
+
+    The face comparison itself lives in face.verify_faces, thresholds and all,
+    and this endpoint deliberately does not reimplement any of it -- a second
+    copy of a policy threshold is a second thing to get wrong. But the UI also
+    needs the face boxes and both images' dimensions to draw the overlay, and
+    getting those the obvious way would mean analysing each image once here and
+    again inside verify_faces: four model passes for two pictures.
+
+    Wrapping the provider instead keeps the comparison logic untouched and
+    makes the repeat calls free.
+    """
+
+    def __init__(self, inner: face_stage.FaceProvider) -> None:
+        self._inner = inner
+        self._cache: dict[str, face_stage.FaceResult] = {}
+
+    def analyze(self, image_bytes: bytes) -> face_stage.FaceResult:
+        import hashlib
+
+        key = hashlib.sha256(image_bytes).hexdigest()
+        if key not in self._cache:
+            self._cache[key] = self._inner.analyze(image_bytes)
+        return self._cache[key]
+
+    def __getattr__(self, name: str):
+        # name, detection_available, recognition_available -- read through.
+        return getattr(self._inner, name)
+
+
+def _face_side(result: face_stage.FaceResult, data: bytes) -> dict[str, object]:
+    """Per-image detail the dashboard needs to draw its overlay."""
+    from app.core.imaging import decode_image
+
+    try:
+        height, width = decode_image(data).shape[:2]
+    except Exception:  # noqa: BLE001 -- dimensions are for drawing, not deciding
+        height = width = None
+
+    primary = result.primary
+    return {
+        "image_width": width,
+        "image_height": height,
+        "faces_found": len(result.faces),
+        "region": primary.region.model_dump(mode="json") if primary else None,
+        "detection_confidence": round(primary.confidence, 4) if primary else None,
+        "error": result.error or None,
+    }
+
+
+# Outcome names are derived from the signal code rather than from the
+# similarity number, so this endpoint can never disagree with the signal it
+# returns alongside it.
+_OUTCOMES = {
+    "face.match.strong": "match",
+    "face.match.uncertain": "uncertain",
+    "face.match.mismatch": "mismatch",
+}
+
+
+@router.post("/verify/face", dependencies=[Depends(rate_limit("verify"))])
+async def verify_face_match(
+    _user: User = Depends(requires("verify:submit")),
+    document: UploadFile = File(..., description="The document carrying the portrait"),
+    selfie: UploadFile = File(..., description="A photograph of the person presenting it"),
+) -> dict[str, object]:
+    """
+    Compare a presented face against the portrait printed on a document.
+
+    Answers only that one question. /verify/case answers it too, but gets there
+    by running the whole pipeline -- OCR, rulebooks, forensics -- on every
+    document first, which costs seconds and is wasted effort when the portrait
+    is all anyone is asking about.
+
+    Three outcomes, not two. The middle band is where similarity genuinely does
+    not decide: age, lighting and pose push the same person down into it, and
+    push some genuinely different people up into it. That band routes to a
+    person instead of being rounded to a verdict.
+    """
+    import time
+
+    document_bytes = await _read_upload(document)
+    selfie_bytes = await _read_upload(selfie)
+
+    provider = _MemoFaceProvider(face_stage.get_default_provider())
+
+    started = time.perf_counter()
+    doc_result = provider.analyze(document_bytes)
+    selfie_result = provider.analyze(selfie_bytes)
+    # Cache hits -- the comparison runs on the results already computed.
+    signals = face_stage.verify_faces(document_bytes, selfie_bytes, provider=provider)
+    elapsed = round((time.perf_counter() - started) * 1000, 2)
+
+    risk = assess_document(signals, expected_stages=(Stage.FACE,))
+
+    outcome = "not_compared"
+    similarity: float | None = None
+    for s in signals:
+        outcome = _OUTCOMES.get(s.code, outcome)
+        value = s.evidence.get("similarity")
+        if isinstance(value, (int, float)):
+            similarity = float(value)
+
+    return {
+        "outcome": outcome,
+        "similarity": similarity,
+        "thresholds": {
+            "strong": face_stage.STRONG_MATCH_THRESHOLD,
+            "possible": face_stage.POSSIBLE_MATCH_THRESHOLD,
+            "min_face_pixels": face_stage.MIN_FACE_PIXELS,
+        },
+        "engine": doc_result.engine,
+        "recognition_available": provider.recognition_available,
+        "document": _face_side(doc_result, document_bytes),
+        "selfie": _face_side(selfie_result, selfie_bytes),
+        "signals": [s.model_dump(mode="json") for s in signals],
+        "risk": risk.model_dump(mode="json"),
+        "processing_ms": elapsed,
+        "limitations": (
+            "Cosine similarity between ArcFace embeddings. It measures whether "
+            "two photographs are of the same person; it does not establish that "
+            "either photograph was taken of a live person just now -- run a "
+            "liveness challenge for that -- nor that the document itself is "
+            "genuine. A portrait smaller than "
+            f"{face_stage.MIN_FACE_PIXELS}px is reported with reduced confidence "
+            "because the embedding has little to work with."
+        ),
+    }
+
+
 @router.get("/cases/recent")
-def recent_cases(limit: int = 20) -> dict[str, object]:
+def recent_cases(
+    limit: int = 20, _user: User = Depends(requires("audit:read"))
+) -> dict[str, object]:
     """
     Recent verification outcomes from the audit trail.
 
@@ -263,7 +438,9 @@ def recent_cases(limit: int = 20) -> dict[str, object]:
 
 
 @router.get("/documents/{fingerprint}/history")
-def document_history(fingerprint: str) -> dict[str, object]:
+def document_history(
+    fingerprint: str, _user: User = Depends(requires("audit:read"))
+) -> dict[str, object]:
     """
     Previous assessments of a byte-identical document.
 

@@ -1,0 +1,26 @@
+[
+  {
+    "detector": "Error Level Analysis",
+    "verdict": "insufficient_data"
+  },
+  {
+    "detector": "Noise consistency",
+    "verdict": "weak",
+    "threshold": 5.8609,
+    "tpr": 0.082,
+    "fpr": 0.0714,
+    "localisation_rate": 0.0159,
+    "n_clean": 28,
+    "n_tampered": 122
+  },
+  {
+    "detector": "Copy-move detection",
+    "verdict": "weak",
+    "threshold": 4.0,
+    "tpr": 0.0492,
+    "fpr": 0.0714,
+    "localisation_rate": 0.0811,
+    "n_clean": 28,
+    "n_tampered": 122
+  }
+]

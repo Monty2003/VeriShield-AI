@@ -76,14 +76,15 @@ Open http://localhost:8000/docs.
 `GET /health` reports which capabilities this deployment actually has, and
 names in plain language what is degraded and why.
 
-### Optional: data layer
+### Data layer
 
-```bash
-docker compose up -d      # MongoDB, Redis, Qdrant, MinIO
-```
+MongoDB (Atlas or local) holds users, document assessments and cases. Set
+`VERISHIELD_MONGO_URL` in `backend/.env`, then run
+`python scripts/bootstrap_admin.py` to create the first account and generate a
+JWT signing key.
 
-Not required. The pipeline is pure computation over an image; these provide
-persistence, object storage and the mock authority registry.
+Verification itself needs no database -- it is pure computation over an image.
+Without one there is no audit trail and no authentication, and `/health` says so.
 
 ### Optional: ML models
 
@@ -278,7 +279,6 @@ backend/
 scripts/
   generate_tampered_dataset.py   labelled tamper data from clean documents
 docs/FORENSICS.md  Honest status of Layer 5
-docker-compose.yml Mongo, Redis, Qdrant, MinIO (all optional)
 ```
 
 ---

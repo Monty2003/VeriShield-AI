@@ -39,14 +39,13 @@ def health() -> dict[str, object]:
     face = _installed("insightface")
     torch = _installed("torch")
 
-    gpu = False
-    if torch:
-        try:
-            import torch as _torch
-
-            gpu = _torch.cuda.is_available()
-        except Exception:  # noqa: BLE001 -- a broken torch must not fail /health
-            gpu = False
+    # Deliberately NOT importing torch to answer this.
+    #
+    # /health is polled, and importing torch costs hundreds of megabytes of
+    # resident memory for a boolean. Reporting "installed" without loading it
+    # is the honest answer to what a health check is actually asking: whether
+    # the capability is present, not whether a device is currently free.
+    gpu = "unknown (torch not loaded)" if torch else False
 
     degraded: list[str] = []
     if not ocr:
