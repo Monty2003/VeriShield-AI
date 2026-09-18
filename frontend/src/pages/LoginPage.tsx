@@ -172,14 +172,14 @@ export default function LoginPage() {
             {signingIn ? 'Signing in' : 'Sign in'}
           </button>
 
-          {/* Careful with this wording: /auth/logout returns revoked:true but
-              the current server does not add the token id to its revocation
-              set, so signing out discards the tokens here. Claiming
-              server-side revocation would be a security promise the
-              deployment does not keep. */}
+          {/* This line used to say only that signing out discards the tokens in
+              this browser, because the server revoked nothing. It now revokes
+              the sign-in's session id (see /auth/logout), which ends the
+              access and refresh tokens server-side -- so the stronger claim is
+              now the true one. Keep the two in step. */}
           <p className="mt-6 text-center text-[11px] leading-relaxed text-slate-600">
             Access tokens are short-lived and refreshed automatically. Signing
-            out discards them from this browser.
+            out ends the session on the server, not just in this browser.
           </p>
         </form>
       </div>

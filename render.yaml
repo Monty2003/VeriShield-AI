@@ -68,6 +68,21 @@ services:
       - key: VERISHIELD_MONGO_TIMEOUT_MS
         value: 8000
 
+      # Where signed-out sessions, rate-limit counters and liveness sessions
+      # live. "memory" works for exactly one worker and forgets everything on
+      # restart -- and a free instance restarts every time it wakes. "redis"
+      # shares them, so a sign-out survives a restart and holds on every
+      # worker. Needs a Redis URL:
+      #   - Render Key Value (free plan): create one in the same region and
+      #     paste its INTERNAL connection string, redis://red-...:6379
+      #   - Upstash (free): the rediss://default:<password>@<host>:6379 URL
+      # If Redis is unreachable, authenticated requests are refused (503)
+      # rather than admitted unchecked, and /health says why.
+      - key: VERISHIELD_STATE_BACKEND
+        value: redis
+      - key: VERISHIELD_REDIS_URL
+        sync: false
+
       - key: VERISHIELD_USE_GPU
         value: false
 

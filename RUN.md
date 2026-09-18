@@ -78,6 +78,14 @@ Object storage (retaining submitted images) is optional. Point
 `VERISHIELD_MINIO_ENDPOINT` at any S3-compatible service, or leave it unset and
 images are simply not retained.
 
+Shared state -- signed-out sessions, rate-limit counters, liveness sessions --
+lives in process memory by default (`VERISHIELD_STATE_BACKEND=memory`), which
+is right for one local worker and needs no setup. A deployment with more than
+one worker, or one that restarts (a free Render instance does, every time it
+wakes), should set `VERISHIELD_STATE_BACKEND=redis` and `VERISHIELD_REDIS_URL`.
+With Redis configured but unreachable, authenticated requests are refused (503)
+rather than admitted without checking whether the session was signed out.
+
 ## Regenerating the tamper dataset
 
 ```powershell

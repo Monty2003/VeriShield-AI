@@ -276,7 +276,7 @@ def api(monkeypatch, signing_key):
     monkeypatch.setattr(users_module, "user_store", stub)
     monkeypatch.setattr(auth_module, "user_store", stub)
     monkeypatch.setattr(auth_routes, "user_store", stub)
-    auth_module._REVOKED_JTI.clear()
+    # Fresh shared state per test: revocations, rate limits, liveness.
     auth_module.reset_rate_limits()
 
     client = TestClient(app, raise_server_exceptions=False)
@@ -371,3 +371,159 @@ class TestSecurityHeaders:
     def test_responses_are_not_cached(self, api):
         """These responses describe people's identity documents."""
         assert api.get("/health").headers["cache-control"] == "no-store"
+
+
+# ---------------------------------------------------------------- sign-out --
+
+PASSWORD = "tram-basalt-quiver-9481"
+
+
+def _login(api, name: str = "op") -> tuple[str, str]:
+    response = api.post(
+        "/api/v1/auth/login", data={"username": name, "password": PASSWORD}
+    )
+    assert response.status_code == 200, response.text
+    body = response.json()
+    return body["access_token"], body["refresh_token"]
+
+
+def _bearer(token: str) -> dict[str, str]:
+    return {"Authorization": f"Bearer {token}"}
+
+
+class TestSignOut:
+    """
+    Signing out used to answer {"revoked": true} and revoke nothing. These pin
+    what it has to mean: the whole sign-in ends, and nothing else does.
+    """
+
+    def test_signing_out_ends_the_access_token(self, api):
+        access, _ = _login(api)
+        assert api.get("/api/v1/auth/me", headers=_bearer(access)).status_code == 200
+
+        out = api.post("/api/v1/auth/logout", headers=_bearer(access))
+        assert out.status_code == 200
+        assert out.json()["scope"] == "session"
+
+        after = api.get("/api/v1/auth/me", headers=_bearer(access))
+        assert after.status_code == 401
+        assert "signed out" in after.json()["detail"]
+
+    def test_signing_out_ends_the_refresh_token_too(self, api):
+        # The real hole: a week-long refresh token that kept minting access
+        # tokens after the user believed they had signed out.
+        access, refresh = _login(api)
+        api.post("/api/v1/auth/logout", headers=_bearer(access))
+        response = api.post("/api/v1/auth/refresh", params={"refresh_token": refresh})
+        assert response.status_code == 401
+
+    def test_a_refreshed_token_belongs_to_the_same_sign_in(self, api):
+        access, refresh = _login(api)
+        renewed = api.post(
+            "/api/v1/auth/refresh", params={"refresh_token": refresh}
+        ).json()["access_token"]
+        api.post("/api/v1/auth/logout", headers=_bearer(renewed))
+        assert api.get("/api/v1/auth/me", headers=_bearer(access)).status_code == 401
+
+    def test_other_sign_ins_are_untouched(self, api):
+        first, _ = _login(api)
+        second, _ = _login(api)
+        api.post("/api/v1/auth/logout", headers=_bearer(first))
+        assert api.get("/api/v1/auth/me", headers=_bearer(second)).status_code == 200
+
+    def test_a_token_from_before_session_ids_is_revoked_on_its_own(self, api):
+        legacy = create_access_token("op", Role.OPERATOR)  # carries no sid
+        out = api.post("/api/v1/auth/logout", headers=_bearer(legacy))
+        assert out.json()["scope"] == "token"
+        assert api.get("/api/v1/auth/me", headers=_bearer(legacy)).status_code == 401
+
+
+class TestSharedState:
+    """
+    Behind more than one worker. Two stores on one Redis server stand in for
+    two processes; switching between them between requests is a load balancer
+    sending the next request somewhere else.
+    """
+
+    @pytest.fixture
+    def workers(self):
+        import fakeredis
+
+        from app.core import state
+
+        server = fakeredis.FakeServer()
+        a = state.RedisStateStore(client=fakeredis.FakeRedis(server=server))
+        b = state.RedisStateStore(client=fakeredis.FakeRedis(server=server))
+        previous = state.use(a)
+        yield state, a, b
+        state.use(previous)
+
+    def test_a_sign_out_on_one_worker_holds_on_another(self, api, workers):
+        state, _a, b = workers
+        access, refresh = _login(api)
+        api.post("/api/v1/auth/logout", headers=_bearer(access))  # lands on A
+
+        state.use(b)  # the next requests land on B
+        assert api.get("/api/v1/auth/me", headers=_bearer(access)).status_code == 401
+        response = api.post("/api/v1/auth/refresh", params={"refresh_token": refresh})
+        assert response.status_code == 401
+
+    def test_a_liveness_session_follows_the_request_to_another_worker(self, api, workers):
+        import cv2
+        import numpy as np
+
+        state, a, b = workers
+        frame = cv2.imencode(".png", np.zeros((16, 16, 3), np.uint8))[1].tobytes()
+        headers = api.token_for("op")
+
+        started = api.post("/api/v1/liveness/start", headers=headers).json()
+        session = started["session_id"]
+
+        counts = []
+        for worker in (b, a, b):  # frames scattered across workers
+            state.use(worker)
+            response = api.post(
+                f"/api/v1/liveness/{session}/frame",
+                headers=headers,
+                files={"file": ("f.png", frame, "image/png")},
+            )
+            assert response.status_code == 200, response.text
+            counts.append(response.json()["frames_collected"])
+        assert counts == [1, 2, 3]
+
+        state.use(a)
+        done = api.post(f"/api/v1/liveness/{session}/complete", headers=headers)
+        assert done.json()["frames_submitted"] == 3
+
+        # One verdict per session: it is gone once judged, on every worker.
+        state.use(b)
+        again = api.post(f"/api/v1/liveness/{session}/complete", headers=headers)
+        assert again.status_code == 404
+
+    def test_an_unreachable_store_refuses_rather_than_admits(self, api, workers):
+        import fakeredis
+
+        state, _a, _b = workers
+        access, _ = _login(api)
+        down = fakeredis.FakeServer()
+        down.connected = False
+        state.use(state.RedisStateStore(client=fakeredis.FakeRedis(server=down)))
+
+        response = api.get("/api/v1/auth/me", headers=_bearer(access))
+        assert response.status_code == 503
+        assert "cannot be authorised" in response.json()["detail"]
+
+    def test_login_is_not_blocked_when_only_the_counters_are_down(self, api, workers):
+        # Rate limiting fails open by design; account lockout still guards
+        # the password. A Redis outage must not become a login outage.
+        import fakeredis
+
+        state, _a, _b = workers
+        down = fakeredis.FakeServer()
+        down.connected = False
+        state.use(state.RedisStateStore(client=fakeredis.FakeRedis(server=down)))
+
+        response = api.post(
+            "/api/v1/auth/login", data={"username": "op", "password": PASSWORD}
+        )
+        assert response.status_code == 200

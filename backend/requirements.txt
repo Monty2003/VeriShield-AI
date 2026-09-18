@@ -34,3 +34,6 @@ rapidfuzz==3.11.0
 pytest==8.3.4
 pytest-asyncio==0.25.0
 httpx==0.28.1
+# Redis semantics in tests without a Redis server -- including two stores on
+# one server, which is how the multi-worker behaviour is tested.
+fakeredis==2.38.0

@@ -23,6 +23,7 @@ from app.core.config import settings
 from app.core.imaging import HEIF_AVAILABLE
 from app.rules.registry import supported_types
 from app.rules.uidai_signature import coverage_summary, pinned_keys
+from app.core import state
 
 router = APIRouter()
 
@@ -71,6 +72,13 @@ def health() -> dict[str, object]:
             "PyTorch is installed but no CUDA device is visible; models run on "
             "CPU, several times slower."
         )
+    shared = state.store()
+    if shared.kind == "redis" and not shared.ping():
+        degraded.append(
+            "Shared state store (Redis) unreachable: every authenticated request "
+            "is refused, because whether a session was signed out cannot be "
+            "checked, and liveness sessions cannot be opened."
+        )
     if not pinned_keys():
         degraded.append(
             "No UIDAI signer certificates: an Aadhaar QR's signature cannot be "
@@ -108,6 +116,7 @@ def health() -> dict[str, object]:
             "liveness_challenge_response": face,
             "liveness_passive_classifier": False,
             "aadhaar_qr_signature": coverage_summary(),
+            "shared_state": shared.describe(),
             "authority_registry": "synthetic",
             "audit_trail": audit_store.available,
             "object_storage": object_store.available,
