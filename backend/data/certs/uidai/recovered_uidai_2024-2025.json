@@ -1,0 +1,9 @@
+{
+  "name": "UIDAI document signer, May 2023 - Feb 2026 period (recovered)",
+  "exponent": 65537,
+  "modulus_hex": "a2722c0e5f2de5ba707ed93f036ec2b1f0b955932390facc0f0bcbf20c80a15c088b4886866b72eb25ab0bf55a2fe06b69edbd5cc83b74c7709db2141e6c07c68bcdf859d3daf7f3fced241d072055dc15488474b45c2c982fa954aa52aa6fffb2481861c65085d84b64158e9f43d9f35ca69b48ce9300522102a4cae093bffd474b08d32d1d0406f687f7e55bd226a2384bf58a41c384c3974f1c7c5115819c926de3adf3ecbb9904c486f1f5d5303977bea63584367329b5c168afdc95121731f7f48d43af7cf31f69b1e3bbe7949dc7a8b10c0bddebababdebea076a1cf8166adf06a8a41dedf143bff835dbd2bd5bb0b61d2472c234a6d4411bc9b536095",
+  "modulus_sha256": "ffe4c5e57f242b410ca396f8e5362894683d708292c439efae4f5ee1699c5230",
+  "observed_from": "2024-07-01",
+  "observed_until": "2025-07-31",
+  "provenance": "Recovered from the RSA signatures of two genuine Aadhaar Secure QRs, a V3 generated Jul 2024 and a V5 generated Jul 2025, as N = gcd(s1^e - m1, s2^e - m2). No certificate is held for it: its link to UIDAI rests on those QRs being UIDAI-issued. Both verify under it; no certified key verifies either."
+}

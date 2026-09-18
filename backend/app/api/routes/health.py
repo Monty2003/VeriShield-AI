@@ -22,6 +22,7 @@ from fastapi import APIRouter
 from app.core.config import settings
 from app.core.imaging import HEIF_AVAILABLE
 from app.rules.registry import supported_types
+from app.rules.uidai_signature import coverage_summary, pinned_keys
 
 router = APIRouter()
 
@@ -70,6 +71,13 @@ def health() -> dict[str, object]:
             "PyTorch is installed but no CUDA device is visible; models run on "
             "CPU, several times slower."
         )
+    if not pinned_keys():
+        degraded.append(
+            "No UIDAI signer certificates: an Aadhaar QR's signature cannot be "
+            "checked, so a QR fabricated to match an edited card is not "
+            "distinguishable from a genuine one. Expected in "
+            "backend/data/certs/uidai/."
+        )
     if not audit_store.available:
         degraded.append(
             "Audit store unreachable: verifications still run, but no record is "
@@ -99,6 +107,7 @@ def health() -> dict[str, object]:
             # see app/pipeline/stages/liveness.py.
             "liveness_challenge_response": face,
             "liveness_passive_classifier": False,
+            "aadhaar_qr_signature": coverage_summary(),
             "authority_registry": "synthetic",
             "audit_trail": audit_store.available,
             "object_storage": object_store.available,

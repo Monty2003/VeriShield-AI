@@ -5,28 +5,18 @@ The QR carries what UIDAI recorded. The printed face carries what the card
 shows. Comparing them turns fields that previously had no check at all -- name,
 date of birth, gender, address, photograph -- into verifiable ones.
 
-An honest statement of what this proves, and what it does not
-------------------------------------------------------------
-UIDAI signs the QR payload, so its contents cannot be edited without
-invalidating the signature. But this module compares the QR against the print;
-it does not yet VERIFY that signature, because doing so needs UIDAI's public
-certificate.
+What this proves, and what it does not
+--------------------------------------
+The QR's RSA signature is verified against UIDAI's document-signer keys (see
+app/rules/uidai_signature.py). When it verifies, the QR is exactly what UIDAI
+issued and every comparison here is a check against an authenticated record:
+editing the print is caught, and so is fabricating a QR to match the edits.
 
-The difference matters and is reported in every signal:
+When it does not verify, the comparisons still catch the common forgery -- an
+edited print with the original QR left in place -- but they are comparisons
+against data that could have been made up. The signature signal says which
+situation applies, and why.
 
-  * Against a forger who edits the printed side and leaves the QR alone --
-    which is the overwhelmingly common case, because regenerating a QR is not
-    something an image editor does -- these checks are decisive.
-  * Against a forger who fabricates a QR to match their edits, they are not.
-    A crafted QR would fail signature verification, and until that runs, a
-    crafted QR passes here.
-
-So a QR match is strong evidence and not proof, and the reasons say so rather
-than implying an authority confirmed anything.
-
-Privacy: no reason string or evidence payload contains a full Aadhaar number, a
-full address, or the holder's name from the QR. Comparisons report agreement,
-not values.
 """
 
 from __future__ import annotations
@@ -41,6 +31,148 @@ from app.schemas.signals import Severity, Signal, SignalStatus, Stage, signal
 # Field names whose disagreement is worth reporting individually.
 _COMPARED = ("name", "date_of_birth", "gender")
 
+
+
+def _signature_signal(qr: AadhaarQR) -> Signal:
+    """The QR's signature, checked against UIDAI's document-signer keys."""
+    from app.rules.uidai_signature import pinned_keys, verify_qr_signature
+
+    verdict = verify_qr_signature(qr)
+    when = verdict.generated_at
+    dated = f"generated on {when:%d %b %Y}" if when else "whose generation date could not be read"
+    evidence: dict[str, object] = {
+        "outcome": verdict.outcome,
+        "generated_on": when.date().isoformat() if when else None,
+    }
+
+    if verdict.outcome == "verified" and verdict.key is not None:
+        key = verdict.key
+        whose = (
+            f"UIDAI's document-signer key '{key.name}'"
+            if key.certified
+            else (
+                f"'{key.name}', a UIDAI key recovered from the signatures of other "
+                f"genuine QRs rather than read from a certificate"
+            )
+        )
+        return signal(
+            code="aadhaar.qr.signature.verified",
+            stage=Stage.DATABASE,
+            title="Aadhaar QR signature",
+            status=SignalStatus.PASS,
+            severity=Severity.INFO,
+            # A certificate ties a key to UIDAI through a government CA chain; a
+            # recovered key is tied to UIDAI only through the QRs it came from.
+            confidence=0.99 if key.certified else 0.9,
+            reason=(
+                f"The QR's digital signature verifies against {whose}. The QR, "
+                f"{dated}, is exactly what that key signed: the name, date of birth, "
+                f"address and photograph it carries are UIDAI's own record, so the "
+                f"comparisons against the printed card are checks against an "
+                f"authenticated source."
+            ),
+            evidence={
+                **evidence,
+                "signer": key.name,
+                "signer_valid": key.period(),
+                "certified": key.certified,
+            },
+        )
+
+    if verdict.outcome == "invalid" and verdict.expected_key is not None:
+        key = verdict.expected_key
+        return signal(
+            code="aadhaar.qr.signature.invalid",
+            stage=Stage.DATABASE,
+            title="Aadhaar QR signature",
+            status=SignalStatus.FAIL,
+            # HIGH rather than CRITICAL, and blocking rather than auto-reject:
+            # the inference rests on UIDAI signing with one key per period,
+            # which holds for every real QR seen so far but is not guaranteed.
+            # The finding is strong enough to stop acceptance and not strong
+            # enough to reject a card without a person looking.
+            severity=Severity.HIGH,
+            confidence=0.8,
+            blocking=True,
+            reason=(
+                f"The QR states it was {dated}, "
+                + (
+                    f"when UIDAI was signing with '{key.name}' ({key.period()}). "
+                    if key.certified
+                    else (
+                        f"inside the period ({key.period()}) in which other genuine "
+                        f"QRs show UIDAI signing with '{key.name}'. "
+                    )
+                )
+                + "Its signature does not verify against that key or any other "
+                "held, so its contents are not what UIDAI signed. The likeliest "
+                "explanation is a QR that was altered or fabricated. A person should "
+                "confirm before acting on it."
+            ),
+            evidence={
+                **evidence,
+                "expected_signer": key.name,
+                "expected_signer_valid": key.period(),
+            },
+        )
+
+    if verdict.outcome == "unknown_key":
+        near_edge = when is not None and any(
+            k.valid_from <= when <= k.valid_until for k in pinned_keys()
+        )
+        why = (
+            "Its date sits close to a changeover between UIDAI signer keys, where "
+            "either key may have been used"
+            if near_edge
+            else f"No UIDAI key covering {when:%b %Y} is held"
+            if when
+            else "Without a date there is no way to tell which key should have signed it"
+        )
+        return signal(
+            code="aadhaar.qr.signature.unknown_key",
+            stage=Stage.DATABASE,
+            title="Aadhaar QR signature",
+            status=SignalStatus.WARN,
+            severity=Severity.MEDIUM,
+            confidence=0.5,
+            reason=(
+                f"The QR, {dated}, carries a signature that none of this "
+                f"deployment's UIDAI keys verify. {why}, so this is most likely a "
+                f"genuine QR signed with a key that is not installed. A QR fabricated "
+                f"with a date chosen to land here would look the same, so the "
+                f"comparisons below are against a QR that could not be authenticated."
+            ),
+            evidence=evidence,
+        )
+
+    if verdict.outcome == "no_keys":
+        return signal(
+            code="aadhaar.qr.signature.unavailable",
+            stage=Stage.DATABASE,
+            title="Aadhaar QR signature",
+            status=SignalStatus.ERROR,
+            severity=Severity.MEDIUM,
+            reason=(
+                "The QR carries a signature, but no UIDAI signer certificates are "
+                "installed, so it could not be checked (expected in "
+                "backend/data/certs/uidai/). The comparisons below cannot tell a "
+                "genuine QR from a fabricated one."
+            ),
+            evidence=evidence,
+        )
+
+    return signal(
+        code="aadhaar.qr.signature.absent",
+        stage=Stage.DATABASE,
+        title="Aadhaar QR signature",
+        status=SignalStatus.SKIP,
+        severity=Severity.INFO,
+        reason=(
+            "The QR carries no signature, so there is nothing to verify. The "
+            "comparisons below are against unauthenticated data."
+        ),
+        evidence=evidence,
+    )
 
 def _digits(value: object) -> str:
     return "".join(ch for ch in str(value) if ch.isdigit())
@@ -89,29 +221,10 @@ def validate_against_qr(
         )
     )
 
-    # --- signature: present, but not yet verified ---
-    if qr.signature:
-        signals.append(
-            signal(
-                code="aadhaar.qr.signature_unverified",
-                stage=Stage.DATABASE,
-                title="Aadhaar QR signature",
-                # SKIP, not PASS. The signature is there; nothing has checked it.
-                # Reporting its mere presence as a pass would be the exact kind
-                # of unearned reassurance this project avoids.
-                status=SignalStatus.SKIP,
-                severity=Severity.INFO,
-                reason=(
-                    "The QR carries a 256-byte RSA signature, but it has NOT been "
-                    "verified -- that requires UIDAI's public certificate, which "
-                    "this deployment does not have. The comparisons below still "
-                    "catch a card whose printed side was edited while the QR was "
-                    "left intact; they would not catch a QR fabricated to match "
-                    "the edits."
-                ),
-                evidence={"signature_bytes": len(qr.signature), "verified": False},
-            )
-        )
+    # --- signature: is the QR itself UIDAI's? ---
+    # Everything below compares the QR with the printed card. This decides
+    # whether the QR is worth comparing against at all.
+    signals.append(_signature_signal(qr))
 
     # --- Aadhaar number: last four digits ---
     qr_last_four = qr.last_four_digits

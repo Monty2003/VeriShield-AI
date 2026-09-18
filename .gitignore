@@ -30,3 +30,10 @@ backend/data/samples/synthetic/
 .env.local
 .env.*.local
 frontend/build/
+
+# Any file whose name ENDS in .env holds secrets. The plain ".env" rule above
+# matches only a file named exactly that, so a file like
+# atlas-credentials.env slipped past it and was one "git add -A" away from
+# publishing the database password. frontend/.env.development and
+# .env.production end differently, hold no secrets, and stay committed.
+*.env
