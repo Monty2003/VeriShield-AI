@@ -12,44 +12,68 @@ That ordering is the entire security property: a recording made in advance
 cannot contain the right action at the right moment, because the attacker did
 not know which action would be asked for.
 
-Session storage is in-process, which is fine for one server and wrong for
-several -- a session started on one worker would not be found by another.
-Redis is already a dependency of this project and is where these belong before
-it runs behind more than one process; the limitation is noted here rather than
-discovered in production.
+Sessions live in the shared state store (app/core/state.py), not in this
+process. A session opened on one worker has to be found by whichever worker
+receives the next frame -- in process memory it would not be, and the
+challenge would fail for reasons that have nothing to do with the person in
+front of the camera.
 """
 
 from __future__ import annotations
 
+from typing import Any, Callable
+
 from fastapi import APIRouter, Depends, File, HTTPException, UploadFile
 
+from app.core import state
 from app.core.auth import rate_limit, requires
 from app.core.users import User
 
 from app.pipeline.stages.liveness import (
+    SESSION_TTL_SECONDS,
     Challenge,
     LivenessSession,
     evaluate,
+    frame_to_dict,
     observe_frame,
+    session_from_parts,
+    session_header,
     start_session,
 )
 
 router = APIRouter()
 
-# session id -> session. See the module docstring on why this is not Redis yet.
-_SESSIONS: dict[str, LivenessSession] = {}
-
 # Enough frames to see an action through, few enough that a client cannot
 # stream indefinitely hoping something registers.
 MAX_FRAMES = 40
 
+# Kept a minute past expiry, so a late frame is told the session EXPIRED (410)
+# rather than that it never existed (404). The difference tells a client
+# whether to start over or to suspect a bug.
+_KEEP_SECONDS = SESSION_TTL_SECONDS + 60
+
+
+def _stored(operation: Callable[[], Any]) -> Any:
+    try:
+        return operation()
+    except state.StateUnavailable as exc:
+        raise HTTPException(
+            status_code=503,
+            detail=(
+                "The session store is unreachable, so the liveness session cannot "
+                "be read or saved. Nothing about the person has been judged."
+            ),
+        ) from exc
+
 
 def _get(session_id: str) -> LivenessSession:
-    session = _SESSIONS.get(session_id)
-    if session is None:
+    loaded = _stored(lambda: state.store().liveness_load(session_id))
+    if loaded is None:
         raise HTTPException(status_code=404, detail="Unknown liveness session.")
+    header, frames = loaded
+    session = session_from_parts(session_id, header, frames)
     if session.expired:
-        _SESSIONS.pop(session_id, None)
+        _stored(lambda: state.store().liveness_delete(session_id))
         raise HTTPException(
             status_code=410,
             detail=(
@@ -73,7 +97,11 @@ def liveness_start(
     unpredictability the check depends on.
     """
     session = start_session(challenge)
-    _SESSIONS[session.session_id] = session
+    _stored(
+        lambda: state.store().liveness_create(
+            session.session_id, session_header(session), _KEEP_SECONDS
+        )
+    )
     return {
         "session_id": session.session_id,
         "challenge": session.challenge.value,
@@ -111,7 +139,14 @@ async def liveness_frame(
         raise HTTPException(status_code=400, detail="Empty frame.")
 
     observation = observe_frame(len(session.frames), data)
-    session.frames.append(observation)
+    collected = _stored(
+        lambda: state.store().liveness_append(
+            session_id, frame_to_dict(observation), _KEEP_SECONDS
+        )
+    )
+    if collected is None:
+        # Expired or removed between reading it and appending to it.
+        raise HTTPException(status_code=410, detail="This liveness session has ended.")
 
     return {
         "frame": observation.index,
@@ -121,7 +156,7 @@ async def liveness_frame(
         "eye_openness": observation.eye_openness,
         "yaw": observation.yaw,
         "pitch": observation.pitch,
-        "frames_collected": len(session.frames),
+        "frames_collected": collected,
     }
 
 
@@ -132,7 +167,9 @@ def liveness_complete(
     """Evaluate the session and return the verdict with its reasoning."""
     session = _get(session_id)
     signals = evaluate(session)
-    _SESSIONS.pop(session_id, None)
+    # One verdict per session: a failed attempt cannot be re-evaluated with
+    # more frames appended until something passes.
+    _stored(lambda: state.store().liveness_delete(session_id))
 
     passed = any(s.code == "liveness.challenge_passed" for s in signals)
     return {

@@ -42,6 +42,20 @@ class Settings(BaseSettings):
     # far away, which is a much more alarming thing to tell an operator.
     mongo_timeout_ms: int = 8000
     redis_url: str = "redis://localhost:6379/0"
+
+    # Where revoked sessions, rate-limit counters and liveness sessions live.
+    #
+    #   memory -- this process only. Right for local development and for a
+    #             single worker; state is lost on restart and invisible to any
+    #             second worker.
+    #   redis  -- shared through redis_url. Required as soon as more than one
+    #             worker or instance serves traffic: otherwise a session signed
+    #             out on one worker stays valid on another.
+    #
+    # Chosen explicitly rather than inferred from redis_url, because redis_url
+    # has a localhost default that nothing listens on: inferring would make
+    # every existing local setup start refusing requests.
+    state_backend: str = "memory"
     qdrant_url: str = "http://localhost:6333"
 
     minio_endpoint: str = "localhost:9000"

@@ -3,7 +3,7 @@ Authentication endpoints.
 
     POST /auth/login     -> access + refresh tokens
     POST /auth/refresh   -> a new access token
-    POST /auth/logout    -> revoke the presented token
+    POST /auth/logout    -> end the sign-in: access and refresh tokens alike
     GET  /auth/me        -> who am I, and what may I do
     POST /auth/users     -> create an account (admin only)
 
@@ -21,7 +21,15 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordRequestForm
 from pydantic import BaseModel, Field
 
-from app.core.auth import current_user, rate_limit, requires, revoke
+from app.core import state
+from app.core.auth import (
+    current_user,
+    is_revoked,
+    oauth2_scheme,
+    rate_limit,
+    requires,
+    revoke_session,
+)
 from app.core.security import (
     ROLE_PERMISSIONS,
     Role,
@@ -29,6 +37,7 @@ from app.core.security import (
     create_access_token,
     create_refresh_token,
     decode_token,
+    new_session_id,
     password_problems,
 )
 from app.core.users import User, user_store
@@ -97,8 +106,10 @@ def login(form: OAuth2PasswordRequestForm = Depends()) -> TokenResponse:
         )
 
     try:
-        access = create_access_token(user.username, user.role)
-        refresh, _jti = create_refresh_token(user.username)
+        # One sid for the whole sign-in, so signing out can end all of it.
+        sid = new_session_id()
+        access = create_access_token(user.username, user.role, session_id=sid)
+        refresh, _jti = create_refresh_token(user.username, session_id=sid)
     except SecretNotConfigured as exc:
         raise HTTPException(status_code=503, detail=str(exc)) from exc
 
@@ -134,6 +145,20 @@ def refresh_token(refresh_token: str) -> TokenResponse:
             detail="Invalid or expired refresh token.",
         ) from exc
 
+    # Before this check existed, signing out ended nothing that mattered: the
+    # refresh token went on minting access tokens for the rest of its week.
+    try:
+        if is_revoked(payload):
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="This session has been signed out.",
+            )
+    except state.StateUnavailable as exc:
+        raise HTTPException(
+            status_code=503,
+            detail="The session store is unreachable, so the refresh cannot be checked.",
+        ) from exc
+
     if not user_store.available:
         raise HTTPException(
             status_code=503, detail="The user store is unreachable."
@@ -149,26 +174,52 @@ def refresh_token(refresh_token: str) -> TokenResponse:
     from app.core.security import ACCESS_TOKEN_MINUTES
 
     return TokenResponse(
-        access_token=create_access_token(user.username, user.role),
+        # Carries the sid forward, so a later sign-out still reaches it.
+        access_token=create_access_token(
+            user.username, user.role, session_id=payload.get("sid")
+        ),
         expires_in=ACCESS_TOKEN_MINUTES * 60,
         role=user.role.value,
     )
 
 
 @router.post("/auth/logout")
-def logout(token_payload: dict = Depends(lambda: None), user: User = Depends(current_user)):
+def logout(
+    token: str | None = Depends(oauth2_scheme),
+    _user: User = Depends(current_user),
+) -> dict[str, object]:
     """
-    Revoke the presented token.
+    End this sign-in on the server.
 
-    Revocation is in-process, so it holds for a single server and not for
-    several -- noted in app/core/auth.py alongside the store that should
-    replace it.
+    This used to answer {"revoked": true} without revoking anything -- the
+    function never saw the token, so it had nothing to revoke. Now the session
+    id carried by the token is revoked, which ends the access token presented,
+    every other access token refreshed from the same sign-in, and the refresh
+    token itself.
     """
+    # current_user has already verified this token; decoding again only reads
+    # its ids.
+    payload = decode_token(token or "", expected_type="access")
+    try:
+        scope = revoke_session(payload)
+    except state.StateUnavailable as exc:
+        raise HTTPException(
+            status_code=503,
+            detail=(
+                "The session store is unreachable, so the sign-out could not be "
+                "recorded. The session is still valid -- try again."
+            ),
+        ) from exc
+
     return {
         "revoked": True,
+        "scope": scope,
         "note": (
-            "This access token is now rejected by this server. Tokens are "
-            "short-lived regardless; discard the refresh token on the client."
+            "The whole sign-in has ended: its access and refresh tokens are "
+            "rejected from now on."
+            if scope == "session"
+            else "This token predates session ids, so only it could be revoked; "
+            "discard its refresh token on the client."
         ),
     }
 

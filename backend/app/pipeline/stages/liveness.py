@@ -48,6 +48,7 @@ is alive.
 
 from __future__ import annotations
 
+import base64
 import random
 import uuid
 from dataclasses import dataclass, field
@@ -226,6 +227,66 @@ def start_session(challenge: Challenge | None = None) -> LivenessSession:
         session_id=str(uuid.uuid4()),
         challenge=challenge or random.choice(list(Challenge)),
         created_at=datetime.now(timezone.utc),
+    )
+
+
+# --- persistence -----------------------------------------------------------
+#
+# A session spans several requests and, behind more than one worker, several
+# processes, so it lives in app.core.state rather than in memory here. It is
+# stored as JSON. Embeddings travel as base64 float32: exact for what the model
+# produces, and a quarter the size of a JSON list of floats. Numbers are forced
+# to plain Python types, because numpy scalars do not serialise.
+
+
+def session_header(session: LivenessSession) -> dict[str, object]:
+    return {
+        "challenge": session.challenge.value,
+        "created_at": session.created_at.isoformat(),
+    }
+
+
+def _plain(value: object) -> float | None:
+    return None if value is None else float(value)  # type: ignore[arg-type]
+
+
+def frame_to_dict(frame: FrameObservation) -> dict[str, object]:
+    embedding = None
+    if frame.embedding is not None:
+        packed = np.asarray(frame.embedding, dtype=np.float32).tobytes()
+        embedding = base64.b64encode(packed).decode("ascii")
+    return {
+        "index": int(frame.index),
+        "face_found": bool(frame.face_found),
+        "eye_openness": _plain(frame.eye_openness),
+        "yaw": _plain(frame.yaw),
+        "pitch": _plain(frame.pitch),
+        "embedding": embedding,
+    }
+
+
+def frame_from_dict(data: dict) -> FrameObservation:
+    raw = data.get("embedding")
+    return FrameObservation(
+        index=int(data["index"]),
+        face_found=bool(data["face_found"]),
+        eye_openness=data.get("eye_openness"),
+        yaw=data.get("yaw"),
+        pitch=data.get("pitch"),
+        embedding=(
+            np.frombuffer(base64.b64decode(raw), dtype=np.float32).copy() if raw else None
+        ),
+    )
+
+
+def session_from_parts(
+    session_id: str, header: dict, frames: list[dict]
+) -> LivenessSession:
+    return LivenessSession(
+        session_id=session_id,
+        challenge=Challenge(header["challenge"]),
+        created_at=datetime.fromisoformat(header["created_at"]),
+        frames=[frame_from_dict(f) for f in frames],
     )
 
 

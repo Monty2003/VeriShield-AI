@@ -64,6 +64,9 @@ async def _warm_datastores() -> None:
         logger.info(
             "datastores warmed: users=%s audit=%s", reachable[0], reachable[1]
         )
+        shared = _state.store()
+        ok = await asyncio.to_thread(shared.ping)
+        logger.info("shared state: %s, reachable=%s", shared.describe(), ok)
     except Exception as exc:  # noqa: BLE001 -- warming is an optimisation
         logger.warning("datastore warm-up failed: %s", exc)
 
@@ -104,6 +107,12 @@ if "*" in _origins:
         "VERISHIELD_CORS_ORIGINS contains '*'. Credentialed requests cannot use "
         "a wildcard origin -- list the front end's real origins instead."
     )
+
+# Built now so a misspelt VERISHIELD_STATE_BACKEND stops the server at
+# startup, instead of failing the first request that needs a session.
+from app.core import state as _state  # noqa: E402
+
+_state.store()
 
 app.add_middleware(
     CORSMiddleware,

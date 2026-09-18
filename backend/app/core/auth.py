@@ -10,27 +10,64 @@ drifting: adding a role means editing one table, not auditing every route for
 
 from __future__ import annotations
 
+import logging
 import time
-from collections import defaultdict, deque
 
 import jwt
 from fastapi import Depends, HTTPException, Request, status
 from fastapi.security import OAuth2PasswordBearer
 
-from app.core.security import Role, SecretNotConfigured, decode_token, has_permission
+from app.core import state
+from app.core.security import (
+    REFRESH_TOKEN_DAYS,
+    Role,
+    SecretNotConfigured,
+    decode_token,
+    has_permission,
+)
 from app.core.users import User, user_store
+
+logger = logging.getLogger(__name__)
 
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/v1/auth/login", auto_error=False)
 
-# Revoked token ids. In-process, which is correct for one server and wrong for
-# several -- a token revoked on one worker stays valid on the others. Redis is
-# already a dependency of this project and is where this belongs before it runs
-# behind more than one process.
-_REVOKED_JTI: set[str] = set()
+# A signed-out session must stay revoked for as long as any token from it could
+# still be presented -- the refresh token lives longest.
+SESSION_REVOCATION_SECONDS = REFRESH_TOKEN_DAYS * 24 * 3600 + 60
+
+_STORE_DOWN = (
+    "The session store is unreachable, so this request cannot be authorised. "
+    "Requests are refused rather than admitted when a sign-out cannot be "
+    "checked."
+)
 
 
-def revoke(jti: str) -> None:
-    _REVOKED_JTI.add(jti)
+def revoke_session(payload: dict) -> str:
+    """
+    End the sign-in a token belongs to. Returns what was revoked.
+
+    The token's own id is revoked for the rest of its lifetime, and its session
+    id for the lifetime of the longest token that session could hold. Tokens
+    minted before sessions existed carry no sid; for those only the presented
+    token can be revoked, and the caller is told so.
+    """
+    store = state.store()
+    now = int(time.time())
+    if payload.get("jti"):
+        remaining = int(payload.get("exp", now)) - now
+        store.revoke(f"jti:{payload['jti']}", max(1, remaining) + 60)
+    if payload.get("sid"):
+        store.revoke(f"sid:{payload['sid']}", SESSION_REVOCATION_SECONDS)
+        return "session"
+    return "token"
+
+
+def is_revoked(payload: dict) -> bool:
+    """Whether this token, or the sign-in it belongs to, has been ended."""
+    store = state.store()
+    if payload.get("jti") and store.is_revoked(f"jti:{payload['jti']}"):
+        return True
+    return bool(payload.get("sid")) and store.is_revoked(f"sid:{payload['sid']}")
 
 
 def _unauthorised(detail: str) -> HTTPException:
@@ -67,8 +104,14 @@ async def current_user(token: str | None = Depends(oauth2_scheme)) -> User:
     except jwt.InvalidTokenError as exc:
         raise _unauthorised("Invalid token.") from exc
 
-    if payload.get("jti") in _REVOKED_JTI:
-        raise _unauthorised("Token has been revoked.")
+    try:
+        revoked = is_revoked(payload)
+    except state.StateUnavailable as exc:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail=_STORE_DOWN
+        ) from exc
+    if revoked:
+        raise _unauthorised("This session has been signed out.")
 
     if not user_store.available:
         raise HTTPException(
@@ -137,9 +180,6 @@ RATE_LIMITS: dict[str, tuple[int, int]] = {
     "default": (120, 60),
 }
 
-_HITS: dict[str, deque[float]] = defaultdict(deque)
-
-
 def _identity(request: Request, user: User | None) -> str:
     """
     Who to charge a request to.
@@ -165,14 +205,17 @@ def rate_limit(bucket: str = "default"):
         request: Request, user: User | None = Depends(optional_user)
     ) -> None:
         key = f"{bucket}:{_identity(request, user)}"
-        now = time.monotonic()
-        hits = _HITS[key]
+        try:
+            retry_after = state.store().hit(key, allowance, window)
+        except state.StateUnavailable as exc:
+            # Fails OPEN, unlike authorisation. Refusing every request because
+            # the counter store is down would turn a Redis outage into a full
+            # outage, and the one limit that guards credentials -- login -- is
+            # backed by account lockout in the user store regardless.
+            logger.warning("rate limit for %r not enforced: %s", bucket, exc)
+            return
 
-        while hits and now - hits[0] > window:
-            hits.popleft()
-
-        if len(hits) >= allowance:
-            retry_after = int(window - (now - hits[0])) + 1
+        if retry_after:
             raise HTTPException(
                 status_code=status.HTTP_429_TOO_MANY_REQUESTS,
                 detail=(
@@ -182,11 +225,9 @@ def rate_limit(bucket: str = "default"):
                 headers={"Retry-After": str(retry_after)},
             )
 
-        hits.append(now)
-
     return _check
 
 
 def reset_rate_limits() -> None:
-    """Clear all buckets. For tests."""
-    _HITS.clear()
+    """Clear all shared state -- limits, revocations, liveness. For tests."""
+    state.store().reset()

@@ -170,8 +170,24 @@ def password_problems(password: str) -> list[str]:
 # --- tokens ----------------------------------------------------------------
 
 
+def new_session_id() -> str:
+    """
+    Identify one sign-in.
+
+    Every token minted for a sign-in -- the refresh token and each access token
+    refreshed from it -- carries the same `sid`. Revoking the sid ends all of
+    them at once. Without it, access and refresh tokens were unrelated, so
+    signing out could at best kill the access token in hand while the
+    week-long refresh token went on minting new ones.
+    """
+    return secrets.token_urlsafe(18)
+
+
 def create_access_token(
-    subject: str, role: Role, expires_minutes: int = ACCESS_TOKEN_MINUTES
+    subject: str,
+    role: Role,
+    expires_minutes: int = ACCESS_TOKEN_MINUTES,
+    session_id: str | None = None,
 ) -> str:
     """Mint a short-lived access token."""
     now = datetime.now(timezone.utc)
@@ -185,10 +201,14 @@ def create_access_token(
         # invalidating every token the user holds.
         "jti": secrets.token_urlsafe(16),
     }
+    if session_id:
+        payload["sid"] = session_id
     return jwt.encode(payload, _secret(), algorithm=ALGORITHM)
 
 
-def create_refresh_token(subject: str) -> tuple[str, str]:
+def create_refresh_token(
+    subject: str, session_id: str | None = None
+) -> tuple[str, str]:
     """Mint a refresh token. Returns (token, jti) so the jti can be stored."""
     now = datetime.now(timezone.utc)
     jti = secrets.token_urlsafe(24)
@@ -199,6 +219,8 @@ def create_refresh_token(subject: str) -> tuple[str, str]:
         "exp": now + timedelta(days=REFRESH_TOKEN_DAYS),
         "jti": jti,
     }
+    if session_id:
+        payload["sid"] = session_id
     return jwt.encode(payload, _secret(), algorithm=ALGORITHM), jti
 
 
