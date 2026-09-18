@@ -34,6 +34,7 @@ const CAPABILITY_LABEL: Record<string, string> = {
   face_recognition: 'Face recognition',
   liveness_challenge_response: 'Liveness (challenge-response)',
   liveness_passive_classifier: 'Liveness (passive classifier)',
+  aadhaar_qr_signature: 'Aadhaar QR signature',
   authority_registry: 'Authority registry',
   audit_trail: 'Audit trail',
   object_storage: 'Object storage',

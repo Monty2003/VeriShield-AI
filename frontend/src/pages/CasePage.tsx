@@ -14,6 +14,7 @@ import DocumentReport, { DocumentTab } from '../components/DocumentReport';
 import RiskGauge from '../components/RiskGauge';
 import SignalList from '../components/SignalList';
 import ContributionChart from '../components/ContributionChart';
+import QrSignatureBadge from '../components/QrSignatureBadge';
 import { Banner, Empty, SectionHeading, Spinner } from '../components/ui';
 import { useAuth } from '../auth/AuthContext';
 import { describeError } from '../api/client';
@@ -209,6 +210,9 @@ export default function CasePage() {
                   title="Cross-document consistency"
                   hint="Risk that exists only when documents are read together."
                 />
+                <div className="mb-3">
+                  <QrSignatureBadge signals={crossSignals} />
+                </div>
                 {crossSignals.length > 0 ? (
                   <SignalList
                     signals={crossSignals}

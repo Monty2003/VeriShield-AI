@@ -23,6 +23,7 @@ import ContributionChart from './ContributionChart';
 import SignalList from './SignalList';
 import EvidenceImage from './EvidenceImage';
 import FieldGrid from './FieldGrid';
+import QrSignatureBadge from './QrSignatureBadge';
 
 interface Props {
   analysis: DocumentAnalysis;
@@ -73,6 +74,8 @@ export default function DocumentReport({ analysis, previewUrl }: Props) {
           {analysis.document_id}
         </p>
       </div>
+
+      <QrSignatureBadge signals={analysis.signals} />
 
       <div className="grid gap-4 lg:grid-cols-[19rem_1fr]">
         <div className="space-y-4">

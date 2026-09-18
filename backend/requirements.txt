@@ -23,6 +23,11 @@ redis==5.2.1
 qdrant-client==1.12.2
 minio==7.2.13
 
+# X.509 parsing and RSA signature verification for the Aadhaar Secure QR.
+# A vetted library rather than hand-rolled PKCS#1 checks: lax padding
+# parsing in home-made verifiers is exactly how signature forgeries happen.
+cryptography==45.0.7
+
 python-dateutil==2.9.0.post0
 rapidfuzz==3.11.0
 
