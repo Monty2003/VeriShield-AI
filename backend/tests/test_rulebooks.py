@@ -278,12 +278,17 @@ class TestCertificateRules:
         signals = validate_certificate(None, self._marksheet(f"CBSE\nEXAMINATION {future}"))
         assert any(s.code == "certificate.year.future" for s in signals)
 
-    def test_no_words_present_is_skip_not_pass(self):
+    def test_no_words_present_is_not_a_pass_and_holds_the_document(self):
         """
-        Absence of the cross-check must not read as having passed it.
+        Absence of the cross-check must not read as having passed it -- nor let
+        a board's name alone carry the document to acceptance.
         """
         signals = validate_certificate(None, self._marksheet("CBSE\nRoll No. 12345678"))
-        assert any(
-            s.code == "certificate.totals.no_words" and s.status == SignalStatus.SKIP
-            for s in signals
-        )
+        no_words = next(s for s in signals if s.code == "certificate.totals.no_words")
+        assert no_words.status != SignalStatus.PASS
+        assert no_words.is_blocking_failure
+
+    def test_words_that_pair_with_no_figure_hold_the_document_too(self):
+        signals = validate_certificate(None, self._marksheet("CBSE\nTOTAL IN WORDS\nSIXTY THREE"))
+        unchecked = next(s for s in signals if s.code == "certificate.totals.unchecked")
+        assert unchecked.is_blocking_failure

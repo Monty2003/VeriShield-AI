@@ -24,6 +24,7 @@ import SignalList from './SignalList';
 import EvidenceImage from './EvidenceImage';
 import FieldGrid from './FieldGrid';
 import QrSignatureBadge from './QrSignatureBadge';
+import IssuerLinkPanel from './IssuerLinkPanel';
 import ReviewPanel from './ReviewPanel';
 
 interface Props {
@@ -82,6 +83,7 @@ export default function DocumentReport({ analysis, previewUrl, reviewable = true
       </div>
 
       <QrSignatureBadge signals={analysis.signals} />
+      <IssuerLinkPanel signals={analysis.signals} />
 
       <div className="grid gap-4 lg:grid-cols-[19rem_1fr]">
         <div className="space-y-4">

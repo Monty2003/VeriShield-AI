@@ -60,6 +60,41 @@ class OCRResult:
             return 0.0
         return sum(line.confidence for line in self.lines) / len(self.lines)
 
+    def rows_text(self) -> str:
+        """
+        The text rebuilt row by row: lines that share a row, left to right.
+
+        OCR returns lines roughly top to bottom, and in a table a cell printed
+        a few pixels higher than its neighbours comes out first. Measured on a
+        genuine CBSE marksheet: a row's total in words sat 4-13 px above its
+        digits, so it was read before them -- straight after the previous row
+        -- and compared with the previous row's marks. Two boxes belong to the
+        same row when they overlap vertically by at least half a line.
+
+        Falls back to the engine's order when any line has no box.
+        """
+        if not self.lines or any(line.region is None for line in self.lines):
+            return self.full_text
+
+        def span(line: TextLine) -> tuple[float, float]:
+            return line.region.y, line.region.y + line.region.height
+
+        rows: list[list[TextLine]] = []
+        for line in sorted(self.lines, key=lambda ln: ln.region.y + ln.region.height / 2):
+            top, bottom = span(line)
+            if rows:
+                row = rows[-1]
+                row_top = sum(span(ln)[0] for ln in row) / len(row)
+                row_bottom = sum(span(ln)[1] for ln in row) / len(row)
+                overlap = min(bottom, row_bottom) - max(top, row_top)
+                if overlap >= 0.5 * min(bottom - top, row_bottom - row_top):
+                    row.append(line)
+                    continue
+            rows.append([line])
+        return "\n".join(
+            " ".join(ln.text for ln in sorted(row, key=lambda ln: ln.region.x)) for row in rows
+        )
+
 
 class OCRProvider(Protocol):
     name: str

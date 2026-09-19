@@ -13,6 +13,7 @@ and nothing at all. Partial evidence, honestly labelled, beats no evidence.
 
 from __future__ import annotations
 
+import re
 import time
 import uuid
 from datetime import datetime, timezone
@@ -30,6 +31,7 @@ from app.schemas.document import (
     DocumentAnalysis,
     DocumentSide,
     DocumentType,
+    FieldConfidence,
     VerificationResult,
 )
 from app.schemas.signals import (
@@ -223,6 +225,17 @@ def analyze_document(
         analysis.fields, extract_signals, mrz_data = fields_result
         signals.extend(extract_signals)
 
+        # A marksheet's evidence is its table, and the totals check pairs each
+        # total with the figures on its row. Hand the rulebook the text rebuilt
+        # row by row from the OCR boxes; field extraction keeps the engine's
+        # order, which its label-then-value rules were written against.
+        if analysis.document_type == DocumentType.CERTIFICATE and ocr_result is not None:
+            table_text = ocr_result.rows_text()
+            if table_text and table_text != text:
+                analysis.fields.raw_text = FieldConfidence(
+                    value=table_text, raw=table_text, confidence=1.0, source="ocr"
+                )
+
         # --- validate (type-specific rulebook) ---
         val_signals, err = _timed(
             lambda: validate_for_type(analysis.document_type, mrz_data, analysis.fields),
@@ -268,7 +281,13 @@ def analyze_document(
         else:
             signals.extend(qr_signals)
     elif analysis.document_type == DocumentType.CERTIFICATE:
-        cert_qr, err = _timed(lambda: _certificate_qr_signals(image_bytes), timings, "qr")
+        cert_qr, err = _timed(
+            lambda: _certificate_qr_signals(
+                image_bytes, str(analysis.fields.raw_text.value or "")
+            ),
+            timings,
+            "qr",
+        )
         if err is not None:
             signals.append(err)
         else:
@@ -383,23 +402,64 @@ _LINK_REDIRECTORS = {
 }
 
 
-def _certificate_qr_signals(image_bytes: bytes) -> list[Signal]:
-    """
-    What a certificate's QR points to. Reported for a person to follow; never fetched.
+# Second-level labels under a country code: the site's own name is one further
+# left in "iitb.ac.in" or "tcs.co.in".
+_SECOND_LEVEL_LABELS = {"co", "ac", "gov", "org", "edu", "nic", "res", "net", "com"}
 
-    Many course and training certificates carry a QR linking to the issuer's
-    verification page -- the one real way to confirm them. The link is not
-    opened here: the service stays offline, and fetching an address taken from
-    an uploaded image would let any upload make this server visit any site.
+
+def _site_name(host: str) -> str:
+    """"certs.ine.com" -> "ine"; "iitb.ac.in" -> "iitb"."""
+    parts = host.lower().removeprefix("www.").split(".")
+    if len(parts) >= 3 and parts[-2] in _SECOND_LEVEL_LABELS and len(parts[-1]) == 2:
+        return parts[-3]
+    return parts[-2] if len(parts) >= 2 else parts[0]
+
+
+def _named_on_certificate(site: str, text: str) -> bool:
+    """
+    Whether the certificate names the organisation the QR's site belongs to.
+
+    Long names are matched with spaces removed, because a logo prints "CODE
+    ALPHA" for codealpha.tech. Short ones must stand as a word of their own --
+    "INE" is inside "ONLINE" and "ENGINEERING".
+    """
+    label = "".join(ch for ch in site.upper() if ch.isalnum())
+    if len(label) < 2:
+        return False
+    if len(label) >= 5:
+        return label in "".join(ch for ch in text.upper() if ch.isalnum())
+    return re.search(rf"\b{re.escape(label)}\b", text.upper()) is not None
+
+
+def _certificate_qr_signals(image_bytes: bytes, text: str = "") -> list[Signal]:
+    """
+    What a certificate's QR points to, checked against what the certificate prints.
+
+    A certificate's QR is usually just a link: unlike UIDAI's, nothing in it is
+    signed, and the proof lives on the issuer's page. That page is not opened
+    here. Measured on the three certificate QRs collected for this project: one
+    site refused automated requests (403), and two build the page in the
+    browser, so a server fetch reads nothing. Following addresses taken from
+    uploaded images would also let any upload make this server visit any site.
+
+    What can be checked offline is whether the QR fits the certificate: whether
+    it leads to the issuer the certificate names, and whether it carries the ID
+    the certificate prints. The reviewer gets the link, and a list of what the
+    issuer's page should show.
     """
     from urllib.parse import urlparse
 
     from app.rules.aadhaar_qr import extract_qr_payloads
+    from app.rules.certificate import printed_ids
 
     found: list[Signal] = []
     for payload in extract_qr_payloads(image_bytes, thorough=False)[:2]:
-        text = payload.decode("utf-8", "replace").strip()
-        address = text if "://" in text else ("http://" + text if text.lower().startswith("www.") else "")
+        content = payload.decode("utf-8", "replace").strip()
+        address = (
+            content
+            if "://" in content
+            else ("http://" + content if content.lower().startswith("www.") else "")
+        )
         parsed = urlparse(address) if address else None
         if parsed is None or parsed.scheme not in ("http", "https") or not parsed.hostname:
             found.append(
@@ -421,6 +481,21 @@ def _certificate_qr_signals(image_bytes: bytes) -> list[Signal]:
 
         domain = parsed.hostname.lower().removeprefix("www.")
         insecure = parsed.scheme == "http"
+        ids = printed_ids(text)
+        flat_address = "".join(ch for ch in address.upper() if ch.isalnum())
+        carried = next(
+            (
+                printed
+                for printed in ids
+                if len(key := "".join(ch for ch in printed.upper() if ch.isalnum())) >= 4
+                and key in flat_address
+            ),
+            None,
+        )
+        look_for = ["the holder's name as printed"]
+        if ids:
+            look_for.append(f"the ID ending {ids[0][-4:]}")
+        look_for.append("the same course and dates")
         found.append(
             signal(
                 code="certificate.qr.link",
@@ -430,15 +505,76 @@ def _certificate_qr_signals(image_bytes: bytes) -> list[Signal]:
                 severity=Severity.INFO,
                 reason=(
                     f"The certificate's QR code links to {domain}. Opening it is how "
-                    f"this certificate is confirmed: check that the site belongs to "
-                    f"the issuer and shows the same name and details. The link was "
-                    f"not opened here."
+                    f"this certificate is confirmed: check that the page shows "
+                    f"{', '.join(look_for)}. It was not opened here -- issuer sites "
+                    f"commonly block automated requests or build the page in the "
+                    f"browser, so a person's browser is the reliable way to read it."
                     + (" It is not an encrypted (https) address." if insecure else "")
                 ),
                 # "url" is masked in the audit trail; the reviewer sees it live.
                 evidence={"domain": domain, "url": address[:300], "https": not insecure},
             )
         )
+        if carried is not None:
+            found.append(
+                signal(
+                    code="certificate.qr.carries_id",
+                    stage=Stage.DATABASE,
+                    title="Certificate QR code",
+                    status=SignalStatus.PASS,
+                    severity=Severity.INFO,
+                    confidence=0.6,
+                    reason=(
+                        f"The QR's link contains the ID printed on the certificate "
+                        f"(ending {carried[-4:]}), so it points at this certificate's "
+                        f"own record rather than a general page. An edited ID would "
+                        f"no longer match the link."
+                    ),
+                )
+            )
+        if domain in _LINK_REDIRECTORS:
+            pass  # reported below; the redirect hides which site it really is
+        elif _named_on_certificate(_site_name(domain), text):
+            found.append(
+                signal(
+                    code="certificate.qr.issuer_site",
+                    stage=Stage.DATABASE,
+                    title="Certificate QR code",
+                    status=SignalStatus.PASS,
+                    severity=Severity.INFO,
+                    confidence=0.5,
+                    reason=(
+                        f"The QR leads to {domain}, and the certificate itself names "
+                        f"'{_site_name(domain)}': the link goes to the issuer's own "
+                        f"site. Consistent -- though a copied certificate keeps its "
+                        f"QR, so only the page itself confirms this one."
+                    ),
+                    evidence={"domain": domain},
+                )
+            )
+        else:
+            found.append(
+                signal(
+                    code="certificate.qr.unrelated_site",
+                    stage=Stage.DATABASE,
+                    title="Certificate QR code",
+                    status=SignalStatus.WARN,
+                    # LOW: on a genuine certificate the issuer's name was only in
+                    # its logo, which OCR read as "XINE" -- so absence from the
+                    # text is a reason to look, not evidence of anything.
+                    severity=Severity.LOW,
+                    confidence=0.4,
+                    reason=(
+                        f"The QR leads to {domain}, a name not found in the "
+                        f"certificate's text. A genuine certificate's QR normally "
+                        f"leads to its issuer, and one made from a copied template "
+                        f"often points somewhere else -- but an issuer's name is "
+                        f"sometimes only in its logo, which is not read as text. "
+                        f"Compare the logo with the site before trusting it."
+                    ),
+                    evidence={"domain": domain},
+                )
+            )
         if domain in _LINK_REDIRECTORS:
             found.append(
                 signal(

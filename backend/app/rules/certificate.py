@@ -91,11 +91,35 @@ _MARKS_TABLE = re.compile(
 )
 
 # Where a certificate says it can be checked: an ID or a web address.
-_CERTIFICATE_ID = re.compile(
-    r"(?:CERTIFICATE|CREDENTIAL|CERT\.?)\s*(?:ID|NO\.?|NUMBER|#)\s*[:.\-]?\s*[A-Z0-9][A-Z0-9/\-]{4,}",
+#
+# Certificates label their IDs every way there is. Only "certificate ID" was
+# recognised, and a genuine internship certificate printing a "Student ID"
+# was reported as printing no ID at all.
+_PRINTED_ID = re.compile(
+    r"\b(?:CERTIFICATE|CREDENTIAL|CERT|STUDENT|REGISTRATION|REGN?|ENROL+MENT|SERIAL"
+    r"|VERIFICATION|REFERENCE|REF|LICEN[CS]E|MEMBERSHIP|UNIQUE)"
+    r"\.?\s*(?:ID|NO|NUMBER|CODE|#)\b\.?\s*[:\-]?\s*([A-Z0-9][A-Z0-9/\-.]{3,})",
     re.I,
 )
 _WEB_ADDRESS = re.compile(r"https?://[^\s]+|\bwww\.[^\s]+", re.I)
+
+# --- dates -------------------------------------------------------------------
+_MONTHS = {
+    "JAN": 1, "FEB": 2, "MAR": 3, "APR": 4, "MAY": 5, "JUN": 6,
+    "JUL": 7, "AUG": 8, "SEP": 9, "OCT": 10, "NOV": 11, "DEC": 12,
+}
+_MONTH = r"(JAN|FEB|MAR|APR|MAY|JUN|JUL|AUG|SEP|OCT|NOV|DEC)[A-Z]*\.?"
+# No word boundary before the day: OCR joins it to the word before
+# ("2024 to30th December 2024"), and a boundary would lose the date.
+_DATE_PATTERNS = (
+    ("dmy", re.compile(r"(?<!\d)(\d{1,2})(?:ST|ND|RD|TH)?\s*(?:OF\s+)?" + _MONTH + r",?\s*(\d{4})\b", re.I)),
+    ("mdy", re.compile(r"\b" + _MONTH + r"\s+(\d{1,2})(?:ST|ND|RD|TH)?,?\s*(\d{4})\b", re.I)),
+    # Numeric dates are read day first, as Indian documents print them.
+    ("num", re.compile(r"(?<!\d)(\d{1,2})[/.-](\d{1,2})[/.-](\d{4})\b")),
+)
+_PERIOD_JOIN = re.compile(r"^\s*(?:TO|TILL|UNTIL|-|\u2013|\u2014)\s*$", re.I)
+_ISSUE_LABEL = re.compile(r"DATE\s*OF\s*ISSUE|ISSUED?\s*(?:ON|DATE)|ISSUE\s*DATE|\bDATED\b", re.I)
+_VALIDITY_LABEL = re.compile(r"VALID|EXPIR|UP\s*TO|UPTO|RENEW", re.I)
 
 _ROLL_NO = re.compile(r"ROLL\s*N[O0]\.?\s*:?\s*([0-9]{6,12})", re.I)
 _YEAR = re.compile(r"\b(19[5-9]\d|20[0-4]\d)\b")
@@ -109,7 +133,12 @@ def words_to_number(phrase: str) -> int | None:
     HUNDRED", "NINETY" -- and returns None for anything it cannot parse rather
     than guessing, since a wrong reading here would manufacture a mismatch.
     """
-    tokens = _NUMBER_WORD.findall(phrase.upper())
+    tokens: list[str] = []
+    for chunk in re.split(r"[\s-]+", phrase.upper()):
+        joined = _split_joined(chunk)
+        # A chunk made wholly of number words, including OCR's joined form
+        # ("SIXTYSEVEN"); anything else is read the old way, word by word.
+        tokens.extend(joined if joined is not None else _NUMBER_WORD.findall(chunk))
     if not tokens:
         return None
 
@@ -130,9 +159,27 @@ def words_to_number(phrase: str) -> int | None:
 _WORD_ALTERNATION = "|".join(
     sorted(set(_UNITS) | set(_TENS) | set(_SCALES), key=len, reverse=True)
 )
+# Separators may be absent: OCR joins the words of a narrow cell. Measured on a
+# genuine marksheet, 3 of 5 totals came out joined ("SIXTYSEVEN" for "SIXTY
+# SEVEN"), and none of those rows was being checked at all. The outer
+# word boundaries still keep this out of ordinary words ("TENANT", "OFTEN").
 _NUMBER_PHRASE = re.compile(
-    r"\b((?:" + _WORD_ALTERNATION + r")(?:[\s-]+(?:" + _WORD_ALTERNATION + r"))*)\b"
+    r"\b((?:" + _WORD_ALTERNATION + r")(?:[\s-]*(?:" + _WORD_ALTERNATION + r"))*)\b"
 )
+_NUMBER_TOKEN = re.compile(_WORD_ALTERNATION)
+
+
+def _split_joined(chunk: str) -> list[str] | None:
+    """"SIXTYSEVEN" -> ["SIXTY", "SEVEN"]; None unless the chunk is number words only."""
+    tokens: list[str] = []
+    at = 0
+    while at < len(chunk):
+        match = _NUMBER_TOKEN.match(chunk, at)
+        if match is None:
+            return None
+        tokens.append(match.group(0))
+        at = match.end()
+    return tokens or None
 
 
 def _number_word_matches(text: str) -> list[tuple[str, int, int]]:
@@ -153,6 +200,140 @@ def find_number_word_phrases(text: str) -> list[tuple[str, int]]:
     than 60 and 3 separately.
     """
     return [(phrase, value) for phrase, value, _ in _number_word_matches(text)]
+
+
+def printed_ids(text: str) -> list[str]:
+    """IDs the certificate prints under a label; a value must contain a digit."""
+    return [
+        match.group(1).rstrip(".-/")
+        for match in _PRINTED_ID.finditer(text)
+        if any(ch.isdigit() for ch in match.group(1))
+    ]
+
+
+def _dates_with_positions(flat: str) -> list[tuple[int, int, date]]:
+    """(start, end, date) for every readable date in whitespace-normalised text."""
+    found: list[tuple[int, int, date]] = []
+    for kind, pattern in _DATE_PATTERNS:
+        for match in pattern.finditer(flat):
+            try:
+                if kind == "dmy":
+                    day, month, year = int(match.group(1)), _MONTHS[match.group(2).upper()[:3]], int(match.group(3))
+                elif kind == "mdy":
+                    month, day, year = _MONTHS[match.group(1).upper()[:3]], int(match.group(2)), int(match.group(3))
+                else:
+                    day, month, year = int(match.group(1)), int(match.group(2)), int(match.group(3))
+                found.append((match.start(), match.end(), date(year, month, day)))
+            except (ValueError, KeyError):
+                continue  # 31 February, or a table figure that only looks like a date
+    # One date per place in the text, first pattern winning.
+    found.sort()
+    kept: list[tuple[int, int, date]] = []
+    for start, end, when in found:
+        if kept and start < kept[-1][1]:
+            continue
+        kept.append((start, end, when))
+    return kept
+
+
+def _date_signals(text: str, today: date | None = None) -> list[Signal]:
+    """
+    The dates a course or internship certificate states, checked against each
+    other and against today: a period that ends before it starts, a completion
+    certificate issued before the programme ended, a date not yet reached.
+    """
+    today = today or date.today()
+    flat = re.sub(r"\s+", " ", text)
+    dates = _dates_with_positions(flat)
+    if not dates:
+        return []
+
+    def label_near(start: int, end: int, pattern: re.Pattern[str], reach: int = 40) -> bool:
+        return bool(pattern.search(flat[max(0, start - reach) : end + reach]))
+
+    periods = [
+        (a[2], b[2])
+        for a, b in zip(dates, dates[1:])
+        if _PERIOD_JOIN.match(flat[a[1] : b[0]])
+    ]
+    # The issue date is the date NEAREST an issue label, on either side --
+    # "Date of Issue" is printed under its date as often as before it, and
+    # the first date within reach was sometimes the period's start instead.
+    labels = [(m.start(), m.end()) for m in _ISSUE_LABEL.finditer(flat)]
+    nearest = sorted(
+        (min(max(l_start - end, start - l_end, 0) for l_start, l_end in labels), when)
+        for start, end, when in dates
+        if labels
+    )
+    issued = nearest[0][1] if nearest and nearest[0][0] <= 40 else None
+    future = [
+        when
+        for start, end, when in dates
+        if when > today and not label_near(start, end, _VALIDITY_LABEL)
+    ]
+
+    problems: list[str] = []
+    if future:
+        problems.append(
+            f"it is dated {future[0]:%d %b %Y}, which has not happened yet"
+        )
+    for begins, ends in periods:
+        if ends < begins:
+            problems.append(
+                f"its period ends ({ends:%d %b %Y}) before it begins ({begins:%d %b %Y})"
+            )
+    if issued is not None:
+        for _, ends in periods:
+            if issued < ends:
+                problems.append(
+                    f"it was issued on {issued:%d %b %Y}, before the period it "
+                    f"certifies ended on {ends:%d %b %Y}"
+                )
+
+    if problems:
+        return [
+            signal(
+                code="certificate.dates.inconsistent",
+                stage=Stage.VALIDATE,
+                title="Dates on the certificate",
+                status=SignalStatus.FAIL,
+                severity=Severity.HIGH,
+                # OCR can misread a digit in a date, so this escalates rather
+                # than rejects -- but a genuine certificate does not do this.
+                confidence=0.7,
+                blocking=True,
+                reason=(
+                    "The certificate's dates do not fit together: "
+                    + "; ".join(problems)
+                    + ". A genuine certificate is issued after what it certifies, "
+                    "and on a date that has already come. Check the original."
+                ),
+                evidence={"dates": [d.isoformat() for _, _, d in dates][:6]},
+            )
+        ]
+    if periods or issued is not None:
+        stated = []
+        if periods:
+            stated.append(f"a period of {periods[0][0]:%d %b %Y} to {periods[0][1]:%d %b %Y}")
+        if issued is not None:
+            stated.append(f"issue on {issued:%d %b %Y}")
+        return [
+            signal(
+                code="certificate.dates.consistent",
+                stage=Stage.VALIDATE,
+                title="Dates on the certificate",
+                status=SignalStatus.PASS,
+                severity=Severity.INFO,
+                confidence=0.7,
+                reason=(
+                    f"The certificate states {' and '.join(stated)}, in a possible "
+                    f"order and none in the future. That rules out a careless "
+                    f"edit of a date; it does not confirm the certificate."
+                ),
+                evidence={"dates": [d.isoformat() for _, _, d in dates][:6]},
+            )
+        ]
+    return []
 
 
 def certificate_kind(text: str) -> str:
@@ -323,7 +504,8 @@ def _validate_credential(text: str) -> list[Signal]:
         )
     ]
 
-    has_id = bool(_CERTIFICATE_ID.search(text))
+    ids = printed_ids(text)
+    has_id = bool(ids)
     domains = sorted(
         {
             re.sub(r"^(?:https?://)?(?:www\.)?", "", address, flags=re.I).split("/")[0].lower()
@@ -334,7 +516,7 @@ def _validate_credential(text: str) -> list[Signal]:
     if has_id or domains:
         where = []
         if has_id:
-            where.append("a certificate ID")
+            where.append(f"an ID (ending {ids[0][-4:]})")
         if domains:
             where.append("a web address (" + ", ".join(domains[:3]) + ")")
         signals.append(
@@ -354,6 +536,7 @@ def _validate_credential(text: str) -> list[Signal]:
         )
 
     signals.extend(_year_signals(text))
+    signals.extend(_date_signals(text))
 
     signals.append(
         signal(
@@ -383,6 +566,32 @@ def _validate_credential(text: str) -> list[Signal]:
     return signals
 
 
+def _totals_unchecked(code: str, what: str) -> Signal:
+    """
+    The marksheet's one offline check did not run.
+
+    Blocking, like every other check that could not establish authenticity:
+    a board's name is all that is left, and anyone can print a board's name.
+    This was a SKIP, and a marksheet's reverse -- instructions, no marks --
+    was auto-accepted on the strength of naming CBSE.
+    """
+    return signal(
+        code=code,
+        stage=Stage.VALIDATE,
+        title="Marks in digits vs words",
+        status=SignalStatus.WARN,
+        severity=Severity.LOW,
+        blocking=True,
+        reason=(
+            f"{what}, so this marksheet's one internal cross-check -- each total "
+            f"in digits against the same total in words -- could not be applied, "
+            f"and nothing else on it can be verified offline. Photograph the marks "
+            f"table again so both columns are legible, or have a person check it. "
+            f"If this is the reverse of the marksheet, submit the front."
+        ),
+    )
+
+
 def _check_totals_against_words(text: str) -> list[Signal]:
     """
     Cross-check every spelled-out total against the digits printed beside it.
@@ -407,21 +616,10 @@ def _check_totals_against_words(text: str) -> list[Signal]:
     phrases = [(p, v) for p, v, _ in matches]
 
     if not phrases:
-        return [
-            signal(
-                code="certificate.totals.no_words",
-                stage=Stage.VALIDATE,
-                title="Marks stated in words",
-                status=SignalStatus.SKIP,
-                severity=Severity.INFO,
-                reason=(
-                    "No totals written out in words were found, so the strongest "
-                    "internal cross-check this document type supports could not "
-                    "be applied. On a marksheet that prints totals both ways, a "
-                    "clearer image would allow it."
-                ),
-            )
-        ]
+        return [_totals_unchecked(
+            "certificate.totals.no_words",
+            "No totals written out in words were found",
+        )]
 
     upper = text.upper()
     matched: list[dict] = []
@@ -450,6 +648,12 @@ def _check_totals_against_words(text: str) -> list[Signal]:
 
     signals: list[Signal] = []
 
+    if not matched and not mismatched:
+        signals.append(_totals_unchecked(
+            "certificate.totals.unchecked",
+            "Totals written in words were found, but no figures could be paired with them",
+        ))
+
     if mismatched:
         detail = "; ".join(
             f"{m['words']} ({m['words_value']}) printed beside {m['digits_nearby']}"
@@ -464,7 +668,10 @@ def _check_totals_against_words(text: str) -> list[Signal]:
                 severity=Severity.HIGH,
                 # Real but not certain: OCR misreads digits on dense tables, and
                 # the positional pairing is a heuristic about layout rather than
-                # a guarantee. Strong enough to escalate, not to conclude.
+                # a guarantee. Strong enough to escalate, not to conclude --
+                # so blocking. It was not, and a marksheet whose digits and
+                # words disagreed was auto-accepted on a score of 15.
+                blocking=True,
                 confidence=0.6,
                 reason=(
                     f"{len(mismatched)} total(s) written in words do not match the "

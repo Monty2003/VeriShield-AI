@@ -379,43 +379,41 @@
       "qr_signature": null
     },
     {
-      "file": "20260907_234214.heic",
+      "file": "20260907_234214.jpg",
       "truth": "certificate",
       "correct": true,
       "predicted": "certificate",
       "side": "front",
       "type_confidence": 1.0,
-      "risk": 15.0,
+      "risk": 0.0,
       "decision": "accept",
       "evidence_confidence": 1.0,
       "blocking_codes": [],
-      "adverse_codes": [
-        "certificate.totals.mismatch"
-      ],
+      "adverse_codes": [],
       "qr_signature": null
     },
     {
-      "file": "20260907_234231.heic",
+      "file": "20260907_234231.jpg",
       "truth": "certificate",
       "correct": true,
       "predicted": "certificate",
       "side": "back",
-      "type_confidence": 0.65,
-      "risk": 5.9,
+      "type_confidence": 0.7,
+      "risk": 4.6,
       "decision": "manual_review",
-      "evidence_confidence": 0.8,
+      "evidence_confidence": 1.0,
       "blocking_codes": [
         "classify.reverse_side",
-        "certificate.no_text"
+        "certificate.totals.no_words"
       ],
       "adverse_codes": [
-        "certificate.no_text",
+        "certificate.totals.no_words",
         "classify.reverse_side"
       ],
       "qr_signature": null
     },
     {
-      "file": "20260907_234315.heic",
+      "file": "20260907_234315.jpg",
       "truth": "certificate",
       "correct": true,
       "predicted": "certificate",
@@ -429,17 +427,21 @@
       "qr_signature": null
     },
     {
-      "file": "20260907_234324.heic",
+      "file": "20260907_234324.jpg",
       "truth": "certificate",
       "correct": true,
       "predicted": "certificate",
       "side": "front",
-      "type_confidence": 0.7,
-      "risk": 0.0,
-      "decision": "accept",
+      "type_confidence": 1.0,
+      "risk": 2.5,
+      "decision": "manual_review",
       "evidence_confidence": 1.0,
-      "blocking_codes": [],
-      "adverse_codes": [],
+      "blocking_codes": [
+        "certificate.totals.no_words"
+      ],
+      "adverse_codes": [
+        "certificate.totals.no_words"
+      ],
       "qr_signature": null
     },
     {
@@ -662,17 +664,17 @@
     1.0
   ],
   "decisions": {
-    "manual_review": 28,
-    "accept": 8
+    "manual_review": 29,
+    "accept": 7
   },
   "decision_rates_ci95": {
     "accept": [
-      0.11716192974839595,
-      0.38085019827859085
+      0.09752972019453349,
+      0.350283620635152
     ],
     "manual_review": [
-      0.6191498017214091,
-      0.882838070251604
+      0.6497163793648479,
+      0.9024702798054665
     ],
     "reject": [
       0.0,
@@ -685,7 +687,7 @@
     "certificate.credential.unverifiable": 8,
     "aadhaar.number.not_found": 7,
     "pan.number.not_found": 4,
-    "certificate.no_text": 1
+    "certificate.totals.no_words": 2
   },
   "manual_review_adverse": {
     "classify.reverse_side": 12,
@@ -695,67 +697,66 @@
     "aadhaar.number.not_found": 7,
     "forensics.noise.inconsistent": 4,
     "pan.number.not_found": 4,
-    "certificate.qr.redirect": 1,
-    "certificate.no_text": 1
+    "certificate.totals.no_words": 2,
+    "certificate.qr.redirect": 1
   },
   "qr_signature": {
     "verified": 6
   },
-  "elapsed_seconds": 292.28,
+  "elapsed_seconds": 299.22,
   "forgeries": {
     "pairs": 122,
-    "informative_pairs": 36,
-    "caught": 2,
-    "missed": 34,
-    "catch_rate": 0.05555555555555555,
+    "informative_pairs": 27,
+    "caught": 1,
+    "missed": 26,
+    "catch_rate": 0.037037037037037035,
     "catch_rate_ci95": [
-      0.015369663767066846,
-      0.18144974107611211
+      0.006567976533097597,
+      0.1828385393415652
     ],
-    "auto_accepted": 34,
+    "auto_accepted": 26,
     "by_operation": {
       "copy_move": {
         "pairs": 28,
-        "informative": 8,
+        "informative": 6,
         "caught": 0,
-        "missed": 8,
+        "missed": 6,
         "caught_by": {},
-        "tampered_accepted": 8
+        "tampered_accepted": 6
       },
       "cross_document_splice": {
         "pairs": 28,
-        "informative": 8,
+        "informative": 6,
         "caught": 0,
-        "missed": 8,
+        "missed": 6,
         "caught_by": {},
-        "tampered_accepted": 8
+        "tampered_accepted": 6
       },
       "inpaint_overwrite": {
         "pairs": 28,
-        "informative": 8,
-        "caught": 2,
-        "missed": 6,
+        "informative": 6,
+        "caught": 1,
+        "missed": 5,
         "caught_by": {
-          "aadhaar.qr.dob_mismatch": 1,
-          "certificate.issuer.unknown": 1
+          "aadhaar.qr.dob_mismatch": 1
         },
-        "tampered_accepted": 6
+        "tampered_accepted": 5
       },
       "photo_substitution": {
         "pairs": 10,
-        "informative": 4,
+        "informative": 3,
         "caught": 0,
-        "missed": 4,
+        "missed": 3,
         "caught_by": {},
-        "tampered_accepted": 4
+        "tampered_accepted": 3
       },
       "text_splice": {
         "pairs": 28,
-        "informative": 8,
+        "informative": 6,
         "caught": 0,
-        "missed": 8,
+        "missed": 6,
         "caught_by": {},
-        "tampered_accepted": 8
+        "tampered_accepted": 6
       }
     },
     "documents": [
@@ -1393,27 +1394,27 @@
         "file": "certificate_016_copy_move.jpg",
         "op": "copy_move",
         "truth": "certificate",
-        "clean_decision": "accept",
-        "forged_decision": "accept",
-        "outcome": "missed",
+        "clean_decision": "manual_review",
+        "forged_decision": "manual_review",
+        "outcome": "uninformative",
         "new_adverse_codes": []
       },
       {
         "file": "certificate_016_cross_document_splice.jpg",
         "op": "cross_document_splice",
         "truth": "certificate",
-        "clean_decision": "accept",
-        "forged_decision": "accept",
-        "outcome": "missed",
+        "clean_decision": "manual_review",
+        "forged_decision": "manual_review",
+        "outcome": "uninformative",
         "new_adverse_codes": []
       },
       {
         "file": "certificate_016_inpaint_overwrite.jpg",
         "op": "inpaint_overwrite",
         "truth": "certificate",
-        "clean_decision": "accept",
+        "clean_decision": "manual_review",
         "forged_decision": "manual_review",
-        "outcome": "caught",
+        "outcome": "uninformative",
         "new_adverse_codes": [
           "certificate.issuer.unknown"
         ]
@@ -1422,9 +1423,9 @@
         "file": "certificate_016_text_splice.jpg",
         "op": "text_splice",
         "truth": "certificate",
-        "clean_decision": "accept",
-        "forged_decision": "accept",
-        "outcome": "missed",
+        "clean_decision": "manual_review",
+        "forged_decision": "manual_review",
+        "outcome": "uninformative",
         "new_adverse_codes": []
       },
       {
@@ -1514,45 +1515,45 @@
         "file": "certificate_019_copy_move.jpg",
         "op": "copy_move",
         "truth": "certificate",
-        "clean_decision": "accept",
-        "forged_decision": "accept",
-        "outcome": "missed",
+        "clean_decision": "manual_review",
+        "forged_decision": "manual_review",
+        "outcome": "uninformative",
         "new_adverse_codes": []
       },
       {
         "file": "certificate_019_cross_document_splice.jpg",
         "op": "cross_document_splice",
         "truth": "certificate",
-        "clean_decision": "accept",
-        "forged_decision": "accept",
-        "outcome": "missed",
+        "clean_decision": "manual_review",
+        "forged_decision": "manual_review",
+        "outcome": "uninformative",
         "new_adverse_codes": []
       },
       {
         "file": "certificate_019_inpaint_overwrite.jpg",
         "op": "inpaint_overwrite",
         "truth": "certificate",
-        "clean_decision": "accept",
-        "forged_decision": "accept",
-        "outcome": "missed",
+        "clean_decision": "manual_review",
+        "forged_decision": "manual_review",
+        "outcome": "uninformative",
         "new_adverse_codes": []
       },
       {
         "file": "certificate_019_photo_substitution.jpg",
         "op": "photo_substitution",
         "truth": "certificate",
-        "clean_decision": "accept",
-        "forged_decision": "accept",
-        "outcome": "missed",
+        "clean_decision": "manual_review",
+        "forged_decision": "manual_review",
+        "outcome": "uninformative",
         "new_adverse_codes": []
       },
       {
         "file": "certificate_019_text_splice.jpg",
         "op": "text_splice",
         "truth": "certificate",
-        "clean_decision": "accept",
-        "forged_decision": "accept",
-        "outcome": "missed",
+        "clean_decision": "manual_review",
+        "forged_decision": "manual_review",
+        "outcome": "uninformative",
         "new_adverse_codes": []
       },
       {
