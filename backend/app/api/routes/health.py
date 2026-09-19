@@ -21,6 +21,7 @@ from fastapi import APIRouter
 
 from app.core.config import settings
 from app.core.imaging import HEIF_AVAILABLE
+from app.rules.aadhaar_qr import available_decoders
 from app.rules.registry import supported_types
 from app.rules.uidai_signature import coverage_summary, pinned_keys
 from app.core import state
@@ -99,6 +100,13 @@ def health() -> dict[str, object]:
             f"({object_store.error[:80]})"
         )
 
+    qr_decoders = available_decoders()
+    if not qr_decoders:
+        degraded.append(
+            "No QR decoder installed: no Aadhaar Secure QR is ever read, so every "
+            "Aadhaar goes to manual review. Install zxing-cpp."
+        )
+
     return {
         "status": "ok",
         "service": settings.app_name,
@@ -115,6 +123,7 @@ def health() -> dict[str, object]:
             # see app/pipeline/stages/liveness.py.
             "liveness_challenge_response": face,
             "liveness_passive_classifier": False,
+            "aadhaar_qr_reading": qr_decoders,
             "aadhaar_qr_signature": coverage_summary(),
             "shared_state": shared.describe(),
             "authority_registry": "synthetic",

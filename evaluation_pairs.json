@@ -1,0 +1,601 @@
+{
+  "pairs": 8,
+  "faces": true,
+  "per_operation": {
+    "copy_move": {
+      "pairs": 8,
+      "accepted": 5,
+      "usable": 7,
+      "single_accepted": 5,
+      "caught": 2
+    },
+    "cross_document_splice": {
+      "pairs": 8,
+      "accepted": 7,
+      "usable": 7,
+      "single_accepted": 8
+    },
+    "inpaint_overwrite": {
+      "pairs": 8,
+      "accepted": 5,
+      "usable": 7,
+      "single_accepted": 6,
+      "caught": 2
+    },
+    "photo_substitution": {
+      "pairs": 2,
+      "accepted": 1,
+      "usable": 2,
+      "single_accepted": 2,
+      "caught": 1
+    },
+    "text_splice": {
+      "pairs": 8,
+      "accepted": 7,
+      "usable": 7,
+      "single_accepted": 8
+    }
+  },
+  "totals": {
+    "pairs": 34,
+    "accepted": 25,
+    "usable": 30,
+    "single_accepted": 29,
+    "caught": 5
+  },
+  "caught_by": {
+    "aadhaar.qr.dob_mismatch": 2,
+    "classify.unknown": 1,
+    "validate.no_rulebook": 1,
+    "extract.aadhaar.not_found": 1,
+    "aadhaar.qr.card_no_face": 1
+  },
+  "details": [
+    {
+      "file": "aadhaar_000_copy_move.jpg",
+      "op": "copy_move",
+      "back": 1,
+      "clean_pair_decision": "accept",
+      "forged_pair_decision": "accept",
+      "single_image_decision": "accept",
+      "new_adverse_codes": []
+    },
+    {
+      "file": "aadhaar_000_cross_document_splice.jpg",
+      "op": "cross_document_splice",
+      "back": 1,
+      "clean_pair_decision": "accept",
+      "forged_pair_decision": "accept",
+      "single_image_decision": "accept",
+      "new_adverse_codes": []
+    },
+    {
+      "file": "aadhaar_000_inpaint_overwrite.jpg",
+      "op": "inpaint_overwrite",
+      "back": 1,
+      "clean_pair_decision": "accept",
+      "forged_pair_decision": "accept",
+      "single_image_decision": "accept",
+      "new_adverse_codes": []
+    },
+    {
+      "file": "aadhaar_000_photo_substitution.jpg",
+      "op": "photo_substitution",
+      "back": 1,
+      "clean_pair_decision": "accept",
+      "forged_pair_decision": "accept",
+      "single_image_decision": "accept",
+      "new_adverse_codes": [
+        "face.detection.found",
+        "forensics.noise.inconsistent"
+      ]
+    },
+    {
+      "file": "aadhaar_000_text_splice.jpg",
+      "op": "text_splice",
+      "back": 1,
+      "clean_pair_decision": "accept",
+      "forged_pair_decision": "accept",
+      "single_image_decision": "accept",
+      "new_adverse_codes": []
+    },
+    {
+      "file": "aadhaar_004_copy_move.jpg",
+      "op": "copy_move",
+      "back": 2,
+      "clean_pair_decision": "accept",
+      "forged_pair_decision": "accept",
+      "single_image_decision": "accept",
+      "new_adverse_codes": []
+    },
+    {
+      "file": "aadhaar_004_cross_document_splice.jpg",
+      "op": "cross_document_splice",
+      "back": 2,
+      "clean_pair_decision": "accept",
+      "forged_pair_decision": "accept",
+      "single_image_decision": "accept",
+      "new_adverse_codes": []
+    },
+    {
+      "file": "aadhaar_004_inpaint_overwrite.jpg",
+      "op": "inpaint_overwrite",
+      "back": 2,
+      "clean_pair_decision": "accept",
+      "forged_pair_decision": "accept",
+      "single_image_decision": "accept",
+      "new_adverse_codes": []
+    },
+    {
+      "file": "aadhaar_004_text_splice.jpg",
+      "op": "text_splice",
+      "back": 2,
+      "clean_pair_decision": "accept",
+      "forged_pair_decision": "accept",
+      "single_image_decision": "accept",
+      "new_adverse_codes": []
+    },
+    {
+      "file": "aadhaar_005_copy_move.jpg",
+      "op": "copy_move",
+      "back": 2,
+      "clean_pair_decision": "manual_review",
+      "forged_pair_decision": "manual_review",
+      "single_image_decision": "manual_review",
+      "new_adverse_codes": [
+        "extract.aadhaar.not_found"
+      ]
+    },
+    {
+      "file": "aadhaar_005_cross_document_splice.jpg",
+      "op": "cross_document_splice",
+      "back": 2,
+      "clean_pair_decision": "manual_review",
+      "forged_pair_decision": "manual_review",
+      "single_image_decision": "accept",
+      "new_adverse_codes": []
+    },
+    {
+      "file": "aadhaar_005_inpaint_overwrite.jpg",
+      "op": "inpaint_overwrite",
+      "back": 2,
+      "clean_pair_decision": "manual_review",
+      "forged_pair_decision": "reject",
+      "single_image_decision": "manual_review",
+      "new_adverse_codes": [
+        "aadhaar.dob.future",
+        "aadhaar.qr.dob_mismatch"
+      ]
+    },
+    {
+      "file": "aadhaar_005_text_splice.jpg",
+      "op": "text_splice",
+      "back": 2,
+      "clean_pair_decision": "manual_review",
+      "forged_pair_decision": "manual_review",
+      "single_image_decision": "accept",
+      "new_adverse_codes": [
+        "forensics.noise.inconsistent"
+      ]
+    },
+    {
+      "file": "aadhaar_006_copy_move.jpg",
+      "op": "copy_move",
+      "back": 2,
+      "clean_pair_decision": "accept",
+      "forged_pair_decision": "accept",
+      "single_image_decision": "accept",
+      "new_adverse_codes": []
+    },
+    {
+      "file": "aadhaar_006_cross_document_splice.jpg",
+      "op": "cross_document_splice",
+      "back": 2,
+      "clean_pair_decision": "accept",
+      "forged_pair_decision": "accept",
+      "single_image_decision": "accept",
+      "new_adverse_codes": []
+    },
+    {
+      "file": "aadhaar_006_inpaint_overwrite.jpg",
+      "op": "inpaint_overwrite",
+      "back": 2,
+      "clean_pair_decision": "accept",
+      "forged_pair_decision": "accept",
+      "single_image_decision": "accept",
+      "new_adverse_codes": []
+    },
+    {
+      "file": "aadhaar_006_text_splice.jpg",
+      "op": "text_splice",
+      "back": 2,
+      "clean_pair_decision": "accept",
+      "forged_pair_decision": "accept",
+      "single_image_decision": "accept",
+      "new_adverse_codes": []
+    },
+    {
+      "file": "aadhaar_008_copy_move.jpg",
+      "op": "copy_move",
+      "back": 2,
+      "clean_pair_decision": "accept",
+      "forged_pair_decision": "accept",
+      "single_image_decision": "accept",
+      "new_adverse_codes": []
+    },
+    {
+      "file": "aadhaar_008_cross_document_splice.jpg",
+      "op": "cross_document_splice",
+      "back": 2,
+      "clean_pair_decision": "accept",
+      "forged_pair_decision": "accept",
+      "single_image_decision": "accept",
+      "new_adverse_codes": []
+    },
+    {
+      "file": "aadhaar_008_inpaint_overwrite.jpg",
+      "op": "inpaint_overwrite",
+      "back": 2,
+      "clean_pair_decision": "accept",
+      "forged_pair_decision": "reject",
+      "single_image_decision": "accept",
+      "new_adverse_codes": [
+        "aadhaar.qr.dob_mismatch"
+      ]
+    },
+    {
+      "file": "aadhaar_008_text_splice.jpg",
+      "op": "text_splice",
+      "back": 2,
+      "clean_pair_decision": "accept",
+      "forged_pair_decision": "accept",
+      "single_image_decision": "accept",
+      "new_adverse_codes": []
+    },
+    {
+      "file": "aadhaar_010_copy_move.jpg",
+      "op": "copy_move",
+      "back": 3,
+      "clean_pair_decision": "accept",
+      "forged_pair_decision": "manual_review",
+      "single_image_decision": "manual_review",
+      "new_adverse_codes": [
+        "classify.unknown",
+        "validate.no_rulebook"
+      ]
+    },
+    {
+      "file": "aadhaar_010_cross_document_splice.jpg",
+      "op": "cross_document_splice",
+      "back": 3,
+      "clean_pair_decision": "accept",
+      "forged_pair_decision": "accept",
+      "single_image_decision": "accept",
+      "new_adverse_codes": []
+    },
+    {
+      "file": "aadhaar_010_inpaint_overwrite.jpg",
+      "op": "inpaint_overwrite",
+      "back": 3,
+      "clean_pair_decision": "accept",
+      "forged_pair_decision": "accept",
+      "single_image_decision": "accept",
+      "new_adverse_codes": []
+    },
+    {
+      "file": "aadhaar_010_text_splice.jpg",
+      "op": "text_splice",
+      "back": 3,
+      "clean_pair_decision": "accept",
+      "forged_pair_decision": "accept",
+      "single_image_decision": "accept",
+      "new_adverse_codes": []
+    },
+    {
+      "file": "aadhaar_012_copy_move.jpg",
+      "op": "copy_move",
+      "back": 3,
+      "clean_pair_decision": "accept",
+      "forged_pair_decision": "manual_review",
+      "single_image_decision": "manual_review",
+      "new_adverse_codes": [
+        "extract.aadhaar.not_found"
+      ]
+    },
+    {
+      "file": "aadhaar_012_cross_document_splice.jpg",
+      "op": "cross_document_splice",
+      "back": 3,
+      "clean_pair_decision": "accept",
+      "forged_pair_decision": "accept",
+      "single_image_decision": "accept",
+      "new_adverse_codes": []
+    },
+    {
+      "file": "aadhaar_012_inpaint_overwrite.jpg",
+      "op": "inpaint_overwrite",
+      "back": 3,
+      "clean_pair_decision": "accept",
+      "forged_pair_decision": "accept",
+      "single_image_decision": "accept",
+      "new_adverse_codes": []
+    },
+    {
+      "file": "aadhaar_012_photo_substitution.jpg",
+      "op": "photo_substitution",
+      "back": 3,
+      "clean_pair_decision": "accept",
+      "forged_pair_decision": "manual_review",
+      "single_image_decision": "accept",
+      "new_adverse_codes": [
+        "aadhaar.qr.card_no_face"
+      ]
+    },
+    {
+      "file": "aadhaar_012_text_splice.jpg",
+      "op": "text_splice",
+      "back": 3,
+      "clean_pair_decision": "accept",
+      "forged_pair_decision": "accept",
+      "single_image_decision": "accept",
+      "new_adverse_codes": []
+    },
+    {
+      "file": "aadhaar_014_copy_move.jpg",
+      "op": "copy_move",
+      "back": 4,
+      "clean_pair_decision": "accept",
+      "forged_pair_decision": "accept",
+      "single_image_decision": "accept",
+      "new_adverse_codes": []
+    },
+    {
+      "file": "aadhaar_014_cross_document_splice.jpg",
+      "op": "cross_document_splice",
+      "back": 4,
+      "clean_pair_decision": "accept",
+      "forged_pair_decision": "accept",
+      "single_image_decision": "accept",
+      "new_adverse_codes": []
+    },
+    {
+      "file": "aadhaar_014_inpaint_overwrite.jpg",
+      "op": "inpaint_overwrite",
+      "back": 4,
+      "clean_pair_decision": "accept",
+      "forged_pair_decision": "reject",
+      "single_image_decision": "reject",
+      "new_adverse_codes": [
+        "aadhaar.qr.dob_mismatch"
+      ]
+    },
+    {
+      "file": "aadhaar_014_text_splice.jpg",
+      "op": "text_splice",
+      "back": 4,
+      "clean_pair_decision": "accept",
+      "forged_pair_decision": "accept",
+      "single_image_decision": "accept",
+      "new_adverse_codes": []
+    }
+  ],
+  "controlled": [
+    {
+      "edit": "date_of_birth",
+      "back": 1,
+      "took": false,
+      "clean_pair_decision": "accept"
+    },
+    {
+      "edit": "number",
+      "back": 1,
+      "took": true,
+      "clean_pair_decision": "accept",
+      "forged_pair_decision": "reject",
+      "single_image_decision": "accept",
+      "new_adverse_codes": [
+        "aadhaar.qr.number_mismatch"
+      ]
+    },
+    {
+      "edit": "portrait",
+      "back": 1,
+      "took": true,
+      "clean_pair_decision": "accept",
+      "forged_pair_decision": "reject",
+      "single_image_decision": "accept",
+      "new_adverse_codes": [
+        "aadhaar.qr.photo_mismatch"
+      ]
+    },
+    {
+      "edit": "date_of_birth",
+      "back": 2,
+      "took": true,
+      "clean_pair_decision": "accept",
+      "forged_pair_decision": "reject",
+      "single_image_decision": "accept",
+      "new_adverse_codes": [
+        "aadhaar.qr.dob_mismatch"
+      ]
+    },
+    {
+      "edit": "number",
+      "back": 2,
+      "took": true,
+      "clean_pair_decision": "accept",
+      "forged_pair_decision": "reject",
+      "single_image_decision": "accept",
+      "new_adverse_codes": [
+        "aadhaar.qr.number_mismatch"
+      ]
+    },
+    {
+      "edit": "portrait",
+      "back": 2,
+      "took": true,
+      "clean_pair_decision": "accept",
+      "forged_pair_decision": "reject",
+      "single_image_decision": "accept",
+      "new_adverse_codes": [
+        "aadhaar.qr.photo_mismatch"
+      ]
+    },
+    {
+      "edit": "number",
+      "back": 2,
+      "took": true,
+      "clean_pair_decision": "manual_review",
+      "forged_pair_decision": "reject",
+      "single_image_decision": "accept",
+      "new_adverse_codes": [
+        "aadhaar.qr.number_mismatch"
+      ]
+    },
+    {
+      "edit": "date_of_birth",
+      "back": 2,
+      "took": false,
+      "clean_pair_decision": "accept"
+    },
+    {
+      "edit": "number",
+      "back": 2,
+      "took": true,
+      "clean_pair_decision": "accept",
+      "forged_pair_decision": "reject",
+      "single_image_decision": "accept",
+      "new_adverse_codes": [
+        "aadhaar.qr.number_mismatch"
+      ]
+    },
+    {
+      "edit": "portrait",
+      "back": 2,
+      "took": true,
+      "clean_pair_decision": "accept",
+      "forged_pair_decision": "reject",
+      "single_image_decision": "accept",
+      "new_adverse_codes": [
+        "aadhaar.qr.photo_mismatch"
+      ]
+    },
+    {
+      "edit": "date_of_birth",
+      "back": 2,
+      "took": false,
+      "clean_pair_decision": "accept"
+    },
+    {
+      "edit": "number",
+      "back": 2,
+      "took": true,
+      "clean_pair_decision": "accept",
+      "forged_pair_decision": "reject",
+      "single_image_decision": "accept",
+      "new_adverse_codes": [
+        "aadhaar.qr.number_mismatch"
+      ]
+    },
+    {
+      "edit": "portrait",
+      "back": 2,
+      "took": true,
+      "clean_pair_decision": "accept",
+      "forged_pair_decision": "reject",
+      "single_image_decision": "accept",
+      "new_adverse_codes": [
+        "aadhaar.qr.photo_mismatch"
+      ]
+    },
+    {
+      "edit": "date_of_birth",
+      "back": 3,
+      "took": true,
+      "clean_pair_decision": "accept",
+      "forged_pair_decision": "reject",
+      "single_image_decision": "accept",
+      "new_adverse_codes": [
+        "aadhaar.qr.dob_mismatch"
+      ]
+    },
+    {
+      "edit": "number",
+      "back": 3,
+      "took": true,
+      "clean_pair_decision": "accept",
+      "forged_pair_decision": "reject",
+      "single_image_decision": "accept",
+      "new_adverse_codes": [
+        "aadhaar.qr.number_mismatch"
+      ]
+    },
+    {
+      "edit": "portrait",
+      "back": 3,
+      "took": true,
+      "clean_pair_decision": "accept",
+      "forged_pair_decision": "reject",
+      "single_image_decision": "accept",
+      "new_adverse_codes": [
+        "aadhaar.qr.photo_mismatch"
+      ]
+    },
+    {
+      "edit": "date_of_birth",
+      "back": 3,
+      "took": false,
+      "clean_pair_decision": "accept"
+    },
+    {
+      "edit": "number",
+      "back": 3,
+      "took": true,
+      "clean_pair_decision": "accept",
+      "forged_pair_decision": "reject",
+      "single_image_decision": "accept",
+      "new_adverse_codes": [
+        "aadhaar.qr.number_mismatch"
+      ]
+    },
+    {
+      "edit": "portrait",
+      "back": 3,
+      "took": true,
+      "clean_pair_decision": "accept",
+      "forged_pair_decision": "reject",
+      "single_image_decision": "accept",
+      "new_adverse_codes": [
+        "aadhaar.qr.photo_mismatch"
+      ]
+    },
+    {
+      "edit": "date_of_birth",
+      "back": 4,
+      "took": false,
+      "clean_pair_decision": "accept"
+    },
+    {
+      "edit": "number",
+      "back": 4,
+      "took": true,
+      "clean_pair_decision": "accept",
+      "forged_pair_decision": "reject",
+      "single_image_decision": "reject",
+      "new_adverse_codes": [
+        "aadhaar.qr.number_mismatch"
+      ]
+    },
+    {
+      "edit": "portrait",
+      "back": 4,
+      "took": true,
+      "clean_pair_decision": "accept",
+      "forged_pair_decision": "reject",
+      "single_image_decision": "accept",
+      "new_adverse_codes": [
+        "aadhaar.qr.photo_mismatch"
+      ]
+    }
+  ]
+}

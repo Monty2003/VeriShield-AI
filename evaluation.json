@@ -3,316 +3,1884 @@
     {
       "file": "20260907_193521.heic",
       "truth": "aadhaar",
-      "predicted": "aadhaar",
       "correct": true,
+      "predicted": "aadhaar",
       "side": "front",
       "type_confidence": 1.0,
-      "risk": 0.8,
-      "decision": "accept",
-      "evidence_confidence": 1.0
+      "risk": 2.5,
+      "decision": "manual_review",
+      "evidence_confidence": 1.0,
+      "blocking_codes": [
+        "aadhaar.qr.unchecked"
+      ],
+      "adverse_codes": [
+        "aadhaar.qr.unchecked"
+      ],
+      "qr_signature": null
     },
     {
       "file": "20260907_193542.heic",
       "truth": "aadhaar",
-      "predicted": "aadhaar",
       "correct": true,
+      "predicted": "aadhaar",
       "side": "front",
       "type_confidence": 1.0,
-      "risk": 0.8,
-      "decision": "accept",
-      "evidence_confidence": 1.0
+      "risk": 2.5,
+      "decision": "manual_review",
+      "evidence_confidence": 1.0,
+      "blocking_codes": [
+        "aadhaar.qr.unchecked"
+      ],
+      "adverse_codes": [
+        "aadhaar.qr.unchecked"
+      ],
+      "qr_signature": null
     },
     {
       "file": "20260907_193550.heic",
       "truth": "aadhaar",
-      "predicted": "aadhaar",
       "correct": true,
+      "predicted": "aadhaar",
       "side": "back",
       "type_confidence": 1.0,
-      "risk": 11.3,
+      "risk": 10.5,
       "decision": "manual_review",
-      "evidence_confidence": 0.8
+      "evidence_confidence": 0.8,
+      "blocking_codes": [
+        "classify.reverse_side",
+        "aadhaar.number.not_found"
+      ],
+      "adverse_codes": [
+        "aadhaar.number.not_found",
+        "classify.reverse_side",
+        "forensics.noise.inconsistent"
+      ],
+      "qr_signature": null
     },
     {
       "file": "20260907_193704.heic",
       "truth": "aadhaar",
-      "predicted": "aadhaar",
       "correct": true,
+      "predicted": "aadhaar",
       "side": "back",
       "type_confidence": 1.0,
-      "risk": 6.6,
+      "risk": 5.9,
       "decision": "manual_review",
-      "evidence_confidence": 0.8
+      "evidence_confidence": 0.8,
+      "blocking_codes": [
+        "classify.reverse_side",
+        "aadhaar.number.not_found"
+      ],
+      "adverse_codes": [
+        "aadhaar.number.not_found",
+        "classify.reverse_side"
+      ],
+      "qr_signature": "verified"
     },
     {
       "file": "20260907_194130.heic",
       "truth": "aadhaar",
-      "predicted": "aadhaar",
       "correct": true,
+      "predicted": "aadhaar",
       "side": "front",
       "type_confidence": 0.55,
-      "risk": 0.8,
-      "decision": "accept",
-      "evidence_confidence": 1.0
+      "risk": 2.5,
+      "decision": "manual_review",
+      "evidence_confidence": 1.0,
+      "blocking_codes": [
+        "aadhaar.qr.unchecked"
+      ],
+      "adverse_codes": [
+        "aadhaar.qr.unchecked"
+      ],
+      "qr_signature": null
     },
     {
       "file": "20260907_194136.heic",
       "truth": "aadhaar",
-      "predicted": "aadhaar",
       "correct": true,
+      "predicted": "aadhaar",
       "side": "front",
       "type_confidence": 0.85,
-      "risk": 5.8,
-      "decision": "accept",
-      "evidence_confidence": 1.0
+      "risk": 7.6,
+      "decision": "manual_review",
+      "evidence_confidence": 1.0,
+      "blocking_codes": [
+        "aadhaar.qr.unchecked"
+      ],
+      "adverse_codes": [
+        "aadhaar.qr.unchecked",
+        "forensics.noise.inconsistent"
+      ],
+      "qr_signature": null
     },
     {
       "file": "20260907_194142.heic",
       "truth": "aadhaar",
-      "predicted": "aadhaar",
       "correct": true,
+      "predicted": "aadhaar",
       "side": "front",
       "type_confidence": 1.0,
-      "risk": 0.8,
-      "decision": "accept",
-      "evidence_confidence": 1.0
+      "risk": 2.5,
+      "decision": "manual_review",
+      "evidence_confidence": 1.0,
+      "blocking_codes": [
+        "aadhaar.qr.unchecked"
+      ],
+      "adverse_codes": [
+        "aadhaar.qr.unchecked"
+      ],
+      "qr_signature": null
     },
     {
       "file": "20260907_194147.heic",
       "truth": "aadhaar",
-      "predicted": "aadhaar",
       "correct": true,
+      "predicted": "aadhaar",
       "side": "back",
       "type_confidence": 1.0,
-      "risk": 6.6,
+      "risk": 5.9,
       "decision": "manual_review",
-      "evidence_confidence": 0.8
+      "evidence_confidence": 0.8,
+      "blocking_codes": [
+        "classify.reverse_side",
+        "aadhaar.number.not_found"
+      ],
+      "adverse_codes": [
+        "aadhaar.number.not_found",
+        "classify.reverse_side"
+      ],
+      "qr_signature": "verified"
     },
     {
       "file": "20260907_194157.heic",
       "truth": "aadhaar",
-      "predicted": "aadhaar",
       "correct": true,
+      "predicted": "aadhaar",
       "side": "front",
       "type_confidence": 1.0,
-      "risk": 0.8,
-      "decision": "accept",
-      "evidence_confidence": 1.0
+      "risk": 2.5,
+      "decision": "manual_review",
+      "evidence_confidence": 1.0,
+      "blocking_codes": [
+        "aadhaar.qr.unchecked"
+      ],
+      "adverse_codes": [
+        "aadhaar.qr.unchecked"
+      ],
+      "qr_signature": null
     },
     {
       "file": "20260907_194201.heic",
       "truth": "aadhaar",
-      "predicted": "aadhaar",
       "correct": true,
+      "predicted": "aadhaar",
       "side": "back",
       "type_confidence": 1.0,
-      "risk": 6.6,
+      "risk": 5.9,
       "decision": "manual_review",
-      "evidence_confidence": 0.8
+      "evidence_confidence": 0.8,
+      "blocking_codes": [
+        "classify.reverse_side",
+        "aadhaar.number.not_found"
+      ],
+      "adverse_codes": [
+        "aadhaar.number.not_found",
+        "classify.reverse_side"
+      ],
+      "qr_signature": "verified"
     },
     {
       "file": "20260907_194208.heic",
       "truth": "aadhaar",
-      "predicted": "aadhaar",
       "correct": true,
+      "predicted": "aadhaar",
       "side": "front",
       "type_confidence": 0.75,
-      "risk": 0.8,
-      "decision": "accept",
-      "evidence_confidence": 1.0
+      "risk": 2.5,
+      "decision": "manual_review",
+      "evidence_confidence": 1.0,
+      "blocking_codes": [
+        "aadhaar.qr.unchecked"
+      ],
+      "adverse_codes": [
+        "aadhaar.qr.unchecked"
+      ],
+      "qr_signature": null
     },
     {
       "file": "20260907_194215.heic",
       "truth": "aadhaar",
-      "predicted": "aadhaar",
       "correct": true,
+      "predicted": "aadhaar",
       "side": "back",
       "type_confidence": 1.0,
-      "risk": 6.6,
+      "risk": 5.9,
       "decision": "manual_review",
-      "evidence_confidence": 0.8
+      "evidence_confidence": 0.8,
+      "blocking_codes": [
+        "classify.reverse_side",
+        "aadhaar.number.not_found"
+      ],
+      "adverse_codes": [
+        "aadhaar.number.not_found",
+        "classify.reverse_side"
+      ],
+      "qr_signature": null
     },
     {
       "file": "20260907_194224.heic",
       "truth": "aadhaar",
-      "predicted": "aadhaar",
       "correct": true,
+      "predicted": "aadhaar",
       "side": "front",
       "type_confidence": 1.0,
-      "risk": 0.8,
-      "decision": "accept",
-      "evidence_confidence": 1.0
+      "risk": 2.5,
+      "decision": "manual_review",
+      "evidence_confidence": 1.0,
+      "blocking_codes": [
+        "aadhaar.qr.unchecked"
+      ],
+      "adverse_codes": [
+        "aadhaar.qr.unchecked"
+      ],
+      "qr_signature": null
     },
     {
       "file": "20260907_194230.heic",
       "truth": "aadhaar",
-      "predicted": "aadhaar",
       "correct": true,
+      "predicted": "aadhaar",
       "side": "back",
       "type_confidence": 1.0,
-      "risk": 6.6,
+      "risk": 5.9,
       "decision": "manual_review",
-      "evidence_confidence": 0.8
+      "evidence_confidence": 0.8,
+      "blocking_codes": [
+        "classify.reverse_side",
+        "aadhaar.number.not_found"
+      ],
+      "adverse_codes": [
+        "aadhaar.number.not_found",
+        "classify.reverse_side"
+      ],
+      "qr_signature": "verified"
     },
     {
       "file": "20260907_194335.heic",
       "truth": "aadhaar",
-      "predicted": "aadhaar",
       "correct": true,
+      "predicted": "aadhaar",
       "side": "front",
       "type_confidence": 1.0,
-      "risk": 0.8,
+      "risk": 0.0,
       "decision": "accept",
-      "evidence_confidence": 1.0
+      "evidence_confidence": 1.0,
+      "blocking_codes": [],
+      "adverse_codes": [],
+      "qr_signature": "verified"
     },
     {
       "file": "20260907_194351.heic",
       "truth": "aadhaar",
-      "predicted": "aadhaar",
       "correct": true,
+      "predicted": "aadhaar",
       "side": "back",
       "type_confidence": 1.0,
-      "risk": 6.6,
+      "risk": 5.9,
       "decision": "manual_review",
-      "evidence_confidence": 0.8
+      "evidence_confidence": 0.8,
+      "blocking_codes": [
+        "classify.reverse_side",
+        "aadhaar.number.not_found"
+      ],
+      "adverse_codes": [
+        "aadhaar.number.not_found",
+        "classify.reverse_side"
+      ],
+      "qr_signature": "verified"
+    },
+    {
+      "file": "1735793663552.jpg",
+      "truth": "certificate",
+      "correct": true,
+      "predicted": "certificate",
+      "side": "front",
+      "type_confidence": 0.7,
+      "risk": 3.5,
+      "decision": "manual_review",
+      "evidence_confidence": 1.0,
+      "blocking_codes": [
+        "certificate.credential.unverifiable"
+      ],
+      "adverse_codes": [
+        "certificate.credential.unverifiable",
+        "forensics.metadata.absent"
+      ],
+      "qr_signature": null
+    },
+    {
+      "file": "1740251556155.jpg",
+      "truth": "certificate",
+      "correct": true,
+      "predicted": "certificate",
+      "side": "front",
+      "type_confidence": 1.0,
+      "risk": 6.0,
+      "decision": "manual_review",
+      "evidence_confidence": 1.0,
+      "blocking_codes": [
+        "certificate.credential.unverifiable"
+      ],
+      "adverse_codes": [
+        "certificate.credential.unverifiable",
+        "certificate.qr.redirect",
+        "forensics.metadata.absent"
+      ],
+      "qr_signature": null
+    },
+    {
+      "file": "1741358803704.jpg",
+      "truth": "certificate",
+      "correct": true,
+      "predicted": "certificate",
+      "side": "front",
+      "type_confidence": 1.0,
+      "risk": 8.1,
+      "decision": "manual_review",
+      "evidence_confidence": 1.0,
+      "blocking_codes": [
+        "certificate.credential.unverifiable"
+      ],
+      "adverse_codes": [
+        "certificate.credential.unverifiable",
+        "forensics.metadata.absent",
+        "forensics.noise.inconsistent"
+      ],
+      "qr_signature": null
+    },
+    {
+      "file": "1775225495558.jpg",
+      "truth": "certificate",
+      "correct": true,
+      "predicted": "certificate",
+      "side": "front",
+      "type_confidence": 1.0,
+      "risk": 3.5,
+      "decision": "manual_review",
+      "evidence_confidence": 1.0,
+      "blocking_codes": [
+        "certificate.credential.unverifiable"
+      ],
+      "adverse_codes": [
+        "certificate.credential.unverifiable",
+        "forensics.metadata.absent"
+      ],
+      "qr_signature": null
     },
     {
       "file": "20260907_234214.heic",
       "truth": "certificate",
-      "predicted": "certificate",
       "correct": true,
+      "predicted": "certificate",
       "side": "front",
-      "type_confidence": 0.7,
-      "risk": 15.8,
+      "type_confidence": 1.0,
+      "risk": 15.0,
       "decision": "accept",
-      "evidence_confidence": 1.0
+      "evidence_confidence": 1.0,
+      "blocking_codes": [],
+      "adverse_codes": [
+        "certificate.totals.mismatch"
+      ],
+      "qr_signature": null
     },
     {
       "file": "20260907_234231.heic",
       "truth": "certificate",
-      "predicted": "certificate",
       "correct": true,
+      "predicted": "certificate",
       "side": "back",
       "type_confidence": 0.65,
-      "risk": 6.6,
+      "risk": 5.9,
       "decision": "manual_review",
-      "evidence_confidence": 0.8
+      "evidence_confidence": 0.8,
+      "blocking_codes": [
+        "classify.reverse_side",
+        "certificate.no_text"
+      ],
+      "adverse_codes": [
+        "certificate.no_text",
+        "classify.reverse_side"
+      ],
+      "qr_signature": null
     },
     {
       "file": "20260907_234315.heic",
       "truth": "certificate",
-      "predicted": "certificate",
       "correct": true,
+      "predicted": "certificate",
       "side": "front",
       "type_confidence": 1.0,
-      "risk": 15.8,
+      "risk": 0.0,
       "decision": "accept",
-      "evidence_confidence": 1.0
+      "evidence_confidence": 1.0,
+      "blocking_codes": [],
+      "adverse_codes": [],
+      "qr_signature": null
     },
     {
       "file": "20260907_234324.heic",
       "truth": "certificate",
-      "predicted": "unknown",
-      "correct": false,
-      "side": "unknown",
-      "type_confidence": 0.4,
-      "risk": 16.6,
+      "correct": true,
+      "predicted": "certificate",
+      "side": "front",
+      "type_confidence": 0.7,
+      "risk": 0.0,
+      "decision": "accept",
+      "evidence_confidence": 1.0,
+      "blocking_codes": [],
+      "adverse_codes": [],
+      "qr_signature": null
+    },
+    {
+      "file": "certificate.jpg",
+      "truth": "certificate",
+      "correct": true,
+      "predicted": "certificate",
+      "side": "front",
+      "type_confidence": 1.0,
+      "risk": 7.6,
       "decision": "manual_review",
-      "evidence_confidence": 1.0
+      "evidence_confidence": 1.0,
+      "blocking_codes": [
+        "certificate.credential.unverifiable"
+      ],
+      "adverse_codes": [
+        "certificate.credential.unverifiable",
+        "forensics.metadata.absent",
+        "forensics.noise.inconsistent"
+      ],
+      "qr_signature": null
+    },
+    {
+      "file": "Intern_Certificate.jpeg",
+      "truth": "certificate",
+      "correct": true,
+      "predicted": "certificate",
+      "side": "front",
+      "type_confidence": 0.65,
+      "risk": 3.5,
+      "decision": "manual_review",
+      "evidence_confidence": 1.0,
+      "blocking_codes": [
+        "certificate.credential.unverifiable"
+      ],
+      "adverse_codes": [
+        "certificate.credential.unverifiable",
+        "forensics.metadata.absent"
+      ],
+      "qr_signature": null
+    },
+    {
+      "file": "Raj Deep Suman_Certificate_page-0001.jpg",
+      "truth": "certificate",
+      "correct": true,
+      "predicted": "certificate",
+      "side": "front",
+      "type_confidence": 1.0,
+      "risk": 3.5,
+      "decision": "manual_review",
+      "evidence_confidence": 1.0,
+      "blocking_codes": [
+        "certificate.credential.unverifiable"
+      ],
+      "adverse_codes": [
+        "certificate.credential.unverifiable",
+        "forensics.metadata.absent"
+      ],
+      "qr_signature": null
+    },
+    {
+      "file": "WhatsApp Image 2025-02-28 at 20.16.54_43cf3782.jpg",
+      "truth": "certificate",
+      "correct": true,
+      "predicted": "certificate",
+      "side": "front",
+      "type_confidence": 0.7,
+      "risk": 3.5,
+      "decision": "manual_review",
+      "evidence_confidence": 1.0,
+      "blocking_codes": [
+        "certificate.credential.unverifiable"
+      ],
+      "adverse_codes": [
+        "certificate.credential.unverifiable",
+        "forensics.metadata.absent"
+      ],
+      "qr_signature": null
     },
     {
       "file": "20260907_193601.heic",
       "truth": "pan",
-      "predicted": "pan",
       "correct": true,
+      "predicted": "pan",
       "side": "front",
       "type_confidence": 1.0,
-      "risk": 0.8,
+      "risk": 0.0,
       "decision": "accept",
-      "evidence_confidence": 1.0
+      "evidence_confidence": 1.0,
+      "blocking_codes": [],
+      "adverse_codes": [],
+      "qr_signature": null
     },
     {
       "file": "20260907_193616.heic",
       "truth": "pan",
-      "predicted": "pan",
       "correct": true,
+      "predicted": "pan",
       "side": "back",
       "type_confidence": 0.8,
-      "risk": 6.6,
+      "risk": 5.9,
       "decision": "manual_review",
-      "evidence_confidence": 0.8
+      "evidence_confidence": 0.8,
+      "blocking_codes": [
+        "classify.reverse_side",
+        "pan.number.not_found"
+      ],
+      "adverse_codes": [
+        "classify.reverse_side",
+        "pan.number.not_found"
+      ],
+      "qr_signature": null
     },
     {
       "file": "20260907_193630.heic",
       "truth": "pan",
-      "predicted": "pan",
       "correct": true,
+      "predicted": "pan",
       "side": "front",
       "type_confidence": 1.0,
-      "risk": 0.8,
+      "risk": 0.0,
       "decision": "accept",
-      "evidence_confidence": 1.0
+      "evidence_confidence": 1.0,
+      "blocking_codes": [],
+      "adverse_codes": [],
+      "qr_signature": null
     },
     {
       "file": "20260907_193639.heic",
       "truth": "pan",
-      "predicted": "pan",
       "correct": true,
+      "predicted": "pan",
       "side": "back",
       "type_confidence": 0.8,
-      "risk": 6.6,
+      "risk": 5.9,
       "decision": "manual_review",
-      "evidence_confidence": 0.8
+      "evidence_confidence": 0.8,
+      "blocking_codes": [
+        "classify.reverse_side",
+        "pan.number.not_found"
+      ],
+      "adverse_codes": [
+        "classify.reverse_side",
+        "pan.number.not_found"
+      ],
+      "qr_signature": null
     },
     {
       "file": "20260907_194239.heic",
       "truth": "pan",
-      "predicted": "pan",
       "correct": true,
+      "predicted": "pan",
       "side": "front",
       "type_confidence": 1.0,
-      "risk": 0.8,
+      "risk": 0.0,
       "decision": "accept",
-      "evidence_confidence": 1.0
+      "evidence_confidence": 1.0,
+      "blocking_codes": [],
+      "adverse_codes": [],
+      "qr_signature": null
     },
     {
       "file": "20260907_194247.heic",
       "truth": "pan",
-      "predicted": "pan",
       "correct": true,
+      "predicted": "pan",
       "side": "back",
       "type_confidence": 0.8,
-      "risk": 6.6,
+      "risk": 5.9,
       "decision": "manual_review",
-      "evidence_confidence": 0.8
+      "evidence_confidence": 0.8,
+      "blocking_codes": [
+        "classify.reverse_side",
+        "pan.number.not_found"
+      ],
+      "adverse_codes": [
+        "classify.reverse_side",
+        "pan.number.not_found"
+      ],
+      "qr_signature": null
     },
     {
       "file": "20260907_194426.heic",
       "truth": "pan",
-      "predicted": "pan",
       "correct": true,
+      "predicted": "pan",
       "side": "front",
       "type_confidence": 1.0,
-      "risk": 0.8,
+      "risk": 0.0,
       "decision": "accept",
-      "evidence_confidence": 1.0
+      "evidence_confidence": 1.0,
+      "blocking_codes": [],
+      "adverse_codes": [],
+      "qr_signature": null
     },
     {
       "file": "20260907_194433.heic",
       "truth": "pan",
-      "predicted": "pan",
       "correct": true,
+      "predicted": "pan",
       "side": "back",
       "type_confidence": 0.8,
-      "risk": 6.6,
+      "risk": 5.9,
       "decision": "manual_review",
-      "evidence_confidence": 0.8
+      "evidence_confidence": 0.8,
+      "blocking_codes": [
+        "classify.reverse_side",
+        "pan.number.not_found"
+      ],
+      "adverse_codes": [
+        "classify.reverse_side",
+        "pan.number.not_found"
+      ],
+      "qr_signature": null
     }
   ],
-  "classification_accuracy": 0.9642857142857143,
+  "classification_accuracy": 1.0,
+  "classification_accuracy_ci95": [
+    0.9035781695514236,
+    1.0
+  ],
   "decisions": {
-    "accept": 15,
-    "manual_review": 13
+    "manual_review": 28,
+    "accept": 8
   },
-  "elapsed_seconds": 155.26
+  "decision_rates_ci95": {
+    "accept": [
+      0.11716192974839595,
+      0.38085019827859085
+    ],
+    "manual_review": [
+      0.6191498017214091,
+      0.882838070251604
+    ],
+    "reject": [
+      0.0,
+      0.09642183044857634
+    ]
+  },
+  "manual_review_blocking": {
+    "classify.reverse_side": 12,
+    "aadhaar.qr.unchecked": 8,
+    "certificate.credential.unverifiable": 8,
+    "aadhaar.number.not_found": 7,
+    "pan.number.not_found": 4,
+    "certificate.no_text": 1
+  },
+  "manual_review_adverse": {
+    "classify.reverse_side": 12,
+    "aadhaar.qr.unchecked": 8,
+    "certificate.credential.unverifiable": 8,
+    "forensics.metadata.absent": 8,
+    "aadhaar.number.not_found": 7,
+    "forensics.noise.inconsistent": 4,
+    "pan.number.not_found": 4,
+    "certificate.qr.redirect": 1,
+    "certificate.no_text": 1
+  },
+  "qr_signature": {
+    "verified": 6
+  },
+  "elapsed_seconds": 292.28,
+  "forgeries": {
+    "pairs": 122,
+    "informative_pairs": 36,
+    "caught": 2,
+    "missed": 34,
+    "catch_rate": 0.05555555555555555,
+    "catch_rate_ci95": [
+      0.015369663767066846,
+      0.18144974107611211
+    ],
+    "auto_accepted": 34,
+    "by_operation": {
+      "copy_move": {
+        "pairs": 28,
+        "informative": 8,
+        "caught": 0,
+        "missed": 8,
+        "caught_by": {},
+        "tampered_accepted": 8
+      },
+      "cross_document_splice": {
+        "pairs": 28,
+        "informative": 8,
+        "caught": 0,
+        "missed": 8,
+        "caught_by": {},
+        "tampered_accepted": 8
+      },
+      "inpaint_overwrite": {
+        "pairs": 28,
+        "informative": 8,
+        "caught": 2,
+        "missed": 6,
+        "caught_by": {
+          "aadhaar.qr.dob_mismatch": 1,
+          "certificate.issuer.unknown": 1
+        },
+        "tampered_accepted": 6
+      },
+      "photo_substitution": {
+        "pairs": 10,
+        "informative": 4,
+        "caught": 0,
+        "missed": 4,
+        "caught_by": {},
+        "tampered_accepted": 4
+      },
+      "text_splice": {
+        "pairs": 28,
+        "informative": 8,
+        "caught": 0,
+        "missed": 8,
+        "caught_by": {},
+        "tampered_accepted": 8
+      }
+    },
+    "documents": [
+      {
+        "file": "aadhaar_000_copy_move.jpg",
+        "op": "copy_move",
+        "truth": "aadhaar",
+        "clean_decision": "manual_review",
+        "forged_decision": "manual_review",
+        "outcome": "uninformative",
+        "new_adverse_codes": []
+      },
+      {
+        "file": "aadhaar_000_cross_document_splice.jpg",
+        "op": "cross_document_splice",
+        "truth": "aadhaar",
+        "clean_decision": "manual_review",
+        "forged_decision": "manual_review",
+        "outcome": "uninformative",
+        "new_adverse_codes": []
+      },
+      {
+        "file": "aadhaar_000_inpaint_overwrite.jpg",
+        "op": "inpaint_overwrite",
+        "truth": "aadhaar",
+        "clean_decision": "manual_review",
+        "forged_decision": "manual_review",
+        "outcome": "uninformative",
+        "new_adverse_codes": []
+      },
+      {
+        "file": "aadhaar_000_photo_substitution.jpg",
+        "op": "photo_substitution",
+        "truth": "aadhaar",
+        "clean_decision": "manual_review",
+        "forged_decision": "manual_review",
+        "outcome": "uninformative",
+        "new_adverse_codes": [
+          "face.detection.found",
+          "forensics.noise.inconsistent"
+        ]
+      },
+      {
+        "file": "aadhaar_000_text_splice.jpg",
+        "op": "text_splice",
+        "truth": "aadhaar",
+        "clean_decision": "manual_review",
+        "forged_decision": "manual_review",
+        "outcome": "uninformative",
+        "new_adverse_codes": []
+      },
+      {
+        "file": "aadhaar_001_copy_move.jpg",
+        "op": "copy_move",
+        "truth": "aadhaar",
+        "clean_decision": "manual_review",
+        "forged_decision": "manual_review",
+        "outcome": "uninformative",
+        "new_adverse_codes": []
+      },
+      {
+        "file": "aadhaar_001_cross_document_splice.jpg",
+        "op": "cross_document_splice",
+        "truth": "aadhaar",
+        "clean_decision": "manual_review",
+        "forged_decision": "manual_review",
+        "outcome": "uninformative",
+        "new_adverse_codes": []
+      },
+      {
+        "file": "aadhaar_001_inpaint_overwrite.jpg",
+        "op": "inpaint_overwrite",
+        "truth": "aadhaar",
+        "clean_decision": "manual_review",
+        "forged_decision": "manual_review",
+        "outcome": "uninformative",
+        "new_adverse_codes": []
+      },
+      {
+        "file": "aadhaar_001_photo_substitution.jpg",
+        "op": "photo_substitution",
+        "truth": "aadhaar",
+        "clean_decision": "manual_review",
+        "forged_decision": "manual_review",
+        "outcome": "uninformative",
+        "new_adverse_codes": []
+      },
+      {
+        "file": "aadhaar_001_text_splice.jpg",
+        "op": "text_splice",
+        "truth": "aadhaar",
+        "clean_decision": "manual_review",
+        "forged_decision": "manual_review",
+        "outcome": "uninformative",
+        "new_adverse_codes": []
+      },
+      {
+        "file": "aadhaar_002_copy_move.jpg",
+        "op": "copy_move",
+        "truth": "aadhaar",
+        "clean_decision": "manual_review",
+        "forged_decision": "manual_review",
+        "outcome": "uninformative",
+        "new_adverse_codes": []
+      },
+      {
+        "file": "aadhaar_002_cross_document_splice.jpg",
+        "op": "cross_document_splice",
+        "truth": "aadhaar",
+        "clean_decision": "manual_review",
+        "forged_decision": "manual_review",
+        "outcome": "uninformative",
+        "new_adverse_codes": []
+      },
+      {
+        "file": "aadhaar_002_inpaint_overwrite.jpg",
+        "op": "inpaint_overwrite",
+        "truth": "aadhaar",
+        "clean_decision": "manual_review",
+        "forged_decision": "manual_review",
+        "outcome": "uninformative",
+        "new_adverse_codes": []
+      },
+      {
+        "file": "aadhaar_002_text_splice.jpg",
+        "op": "text_splice",
+        "truth": "aadhaar",
+        "clean_decision": "manual_review",
+        "forged_decision": "manual_review",
+        "outcome": "uninformative",
+        "new_adverse_codes": []
+      },
+      {
+        "file": "aadhaar_003_copy_move.jpg",
+        "op": "copy_move",
+        "truth": "aadhaar",
+        "clean_decision": "manual_review",
+        "forged_decision": "manual_review",
+        "outcome": "uninformative",
+        "new_adverse_codes": []
+      },
+      {
+        "file": "aadhaar_003_cross_document_splice.jpg",
+        "op": "cross_document_splice",
+        "truth": "aadhaar",
+        "clean_decision": "manual_review",
+        "forged_decision": "manual_review",
+        "outcome": "uninformative",
+        "new_adverse_codes": []
+      },
+      {
+        "file": "aadhaar_003_inpaint_overwrite.jpg",
+        "op": "inpaint_overwrite",
+        "truth": "aadhaar",
+        "clean_decision": "manual_review",
+        "forged_decision": "manual_review",
+        "outcome": "uninformative",
+        "new_adverse_codes": []
+      },
+      {
+        "file": "aadhaar_003_text_splice.jpg",
+        "op": "text_splice",
+        "truth": "aadhaar",
+        "clean_decision": "manual_review",
+        "forged_decision": "manual_review",
+        "outcome": "uninformative",
+        "new_adverse_codes": []
+      },
+      {
+        "file": "aadhaar_004_copy_move.jpg",
+        "op": "copy_move",
+        "truth": "aadhaar",
+        "clean_decision": "manual_review",
+        "forged_decision": "manual_review",
+        "outcome": "uninformative",
+        "new_adverse_codes": []
+      },
+      {
+        "file": "aadhaar_004_cross_document_splice.jpg",
+        "op": "cross_document_splice",
+        "truth": "aadhaar",
+        "clean_decision": "manual_review",
+        "forged_decision": "manual_review",
+        "outcome": "uninformative",
+        "new_adverse_codes": []
+      },
+      {
+        "file": "aadhaar_004_inpaint_overwrite.jpg",
+        "op": "inpaint_overwrite",
+        "truth": "aadhaar",
+        "clean_decision": "manual_review",
+        "forged_decision": "manual_review",
+        "outcome": "uninformative",
+        "new_adverse_codes": []
+      },
+      {
+        "file": "aadhaar_004_text_splice.jpg",
+        "op": "text_splice",
+        "truth": "aadhaar",
+        "clean_decision": "manual_review",
+        "forged_decision": "manual_review",
+        "outcome": "uninformative",
+        "new_adverse_codes": []
+      },
+      {
+        "file": "aadhaar_005_copy_move.jpg",
+        "op": "copy_move",
+        "truth": "aadhaar",
+        "clean_decision": "manual_review",
+        "forged_decision": "manual_review",
+        "outcome": "uninformative",
+        "new_adverse_codes": [
+          "aadhaar.number.not_found",
+          "extract.aadhaar.not_found"
+        ]
+      },
+      {
+        "file": "aadhaar_005_cross_document_splice.jpg",
+        "op": "cross_document_splice",
+        "truth": "aadhaar",
+        "clean_decision": "manual_review",
+        "forged_decision": "manual_review",
+        "outcome": "uninformative",
+        "new_adverse_codes": []
+      },
+      {
+        "file": "aadhaar_005_inpaint_overwrite.jpg",
+        "op": "inpaint_overwrite",
+        "truth": "aadhaar",
+        "clean_decision": "manual_review",
+        "forged_decision": "manual_review",
+        "outcome": "uninformative",
+        "new_adverse_codes": [
+          "aadhaar.dob.future"
+        ]
+      },
+      {
+        "file": "aadhaar_005_text_splice.jpg",
+        "op": "text_splice",
+        "truth": "aadhaar",
+        "clean_decision": "manual_review",
+        "forged_decision": "manual_review",
+        "outcome": "uninformative",
+        "new_adverse_codes": [
+          "forensics.noise.inconsistent"
+        ]
+      },
+      {
+        "file": "aadhaar_006_copy_move.jpg",
+        "op": "copy_move",
+        "truth": "aadhaar",
+        "clean_decision": "manual_review",
+        "forged_decision": "manual_review",
+        "outcome": "uninformative",
+        "new_adverse_codes": []
+      },
+      {
+        "file": "aadhaar_006_cross_document_splice.jpg",
+        "op": "cross_document_splice",
+        "truth": "aadhaar",
+        "clean_decision": "manual_review",
+        "forged_decision": "manual_review",
+        "outcome": "uninformative",
+        "new_adverse_codes": []
+      },
+      {
+        "file": "aadhaar_006_inpaint_overwrite.jpg",
+        "op": "inpaint_overwrite",
+        "truth": "aadhaar",
+        "clean_decision": "manual_review",
+        "forged_decision": "manual_review",
+        "outcome": "uninformative",
+        "new_adverse_codes": []
+      },
+      {
+        "file": "aadhaar_006_text_splice.jpg",
+        "op": "text_splice",
+        "truth": "aadhaar",
+        "clean_decision": "manual_review",
+        "forged_decision": "manual_review",
+        "outcome": "uninformative",
+        "new_adverse_codes": []
+      },
+      {
+        "file": "aadhaar_007_copy_move.jpg",
+        "op": "copy_move",
+        "truth": "aadhaar",
+        "clean_decision": "manual_review",
+        "forged_decision": "manual_review",
+        "outcome": "uninformative",
+        "new_adverse_codes": []
+      },
+      {
+        "file": "aadhaar_007_cross_document_splice.jpg",
+        "op": "cross_document_splice",
+        "truth": "aadhaar",
+        "clean_decision": "manual_review",
+        "forged_decision": "manual_review",
+        "outcome": "uninformative",
+        "new_adverse_codes": []
+      },
+      {
+        "file": "aadhaar_007_inpaint_overwrite.jpg",
+        "op": "inpaint_overwrite",
+        "truth": "aadhaar",
+        "clean_decision": "manual_review",
+        "forged_decision": "manual_review",
+        "outcome": "uninformative",
+        "new_adverse_codes": []
+      },
+      {
+        "file": "aadhaar_007_text_splice.jpg",
+        "op": "text_splice",
+        "truth": "aadhaar",
+        "clean_decision": "manual_review",
+        "forged_decision": "manual_review",
+        "outcome": "uninformative",
+        "new_adverse_codes": []
+      },
+      {
+        "file": "aadhaar_008_copy_move.jpg",
+        "op": "copy_move",
+        "truth": "aadhaar",
+        "clean_decision": "manual_review",
+        "forged_decision": "manual_review",
+        "outcome": "uninformative",
+        "new_adverse_codes": []
+      },
+      {
+        "file": "aadhaar_008_cross_document_splice.jpg",
+        "op": "cross_document_splice",
+        "truth": "aadhaar",
+        "clean_decision": "manual_review",
+        "forged_decision": "manual_review",
+        "outcome": "uninformative",
+        "new_adverse_codes": []
+      },
+      {
+        "file": "aadhaar_008_inpaint_overwrite.jpg",
+        "op": "inpaint_overwrite",
+        "truth": "aadhaar",
+        "clean_decision": "manual_review",
+        "forged_decision": "manual_review",
+        "outcome": "uninformative",
+        "new_adverse_codes": []
+      },
+      {
+        "file": "aadhaar_008_text_splice.jpg",
+        "op": "text_splice",
+        "truth": "aadhaar",
+        "clean_decision": "manual_review",
+        "forged_decision": "manual_review",
+        "outcome": "uninformative",
+        "new_adverse_codes": []
+      },
+      {
+        "file": "aadhaar_009_copy_move.jpg",
+        "op": "copy_move",
+        "truth": "aadhaar",
+        "clean_decision": "manual_review",
+        "forged_decision": "manual_review",
+        "outcome": "uninformative",
+        "new_adverse_codes": []
+      },
+      {
+        "file": "aadhaar_009_cross_document_splice.jpg",
+        "op": "cross_document_splice",
+        "truth": "aadhaar",
+        "clean_decision": "manual_review",
+        "forged_decision": "manual_review",
+        "outcome": "uninformative",
+        "new_adverse_codes": []
+      },
+      {
+        "file": "aadhaar_009_inpaint_overwrite.jpg",
+        "op": "inpaint_overwrite",
+        "truth": "aadhaar",
+        "clean_decision": "manual_review",
+        "forged_decision": "manual_review",
+        "outcome": "uninformative",
+        "new_adverse_codes": []
+      },
+      {
+        "file": "aadhaar_009_text_splice.jpg",
+        "op": "text_splice",
+        "truth": "aadhaar",
+        "clean_decision": "manual_review",
+        "forged_decision": "manual_review",
+        "outcome": "uninformative",
+        "new_adverse_codes": []
+      },
+      {
+        "file": "aadhaar_010_copy_move.jpg",
+        "op": "copy_move",
+        "truth": "aadhaar",
+        "clean_decision": "manual_review",
+        "forged_decision": "manual_review",
+        "outcome": "uninformative",
+        "new_adverse_codes": [
+          "classify.unknown",
+          "validate.no_rulebook"
+        ]
+      },
+      {
+        "file": "aadhaar_010_cross_document_splice.jpg",
+        "op": "cross_document_splice",
+        "truth": "aadhaar",
+        "clean_decision": "manual_review",
+        "forged_decision": "manual_review",
+        "outcome": "uninformative",
+        "new_adverse_codes": []
+      },
+      {
+        "file": "aadhaar_010_inpaint_overwrite.jpg",
+        "op": "inpaint_overwrite",
+        "truth": "aadhaar",
+        "clean_decision": "manual_review",
+        "forged_decision": "manual_review",
+        "outcome": "uninformative",
+        "new_adverse_codes": []
+      },
+      {
+        "file": "aadhaar_010_text_splice.jpg",
+        "op": "text_splice",
+        "truth": "aadhaar",
+        "clean_decision": "manual_review",
+        "forged_decision": "manual_review",
+        "outcome": "uninformative",
+        "new_adverse_codes": []
+      },
+      {
+        "file": "aadhaar_011_copy_move.jpg",
+        "op": "copy_move",
+        "truth": "aadhaar",
+        "clean_decision": "manual_review",
+        "forged_decision": "manual_review",
+        "outcome": "uninformative",
+        "new_adverse_codes": []
+      },
+      {
+        "file": "aadhaar_011_cross_document_splice.jpg",
+        "op": "cross_document_splice",
+        "truth": "aadhaar",
+        "clean_decision": "manual_review",
+        "forged_decision": "manual_review",
+        "outcome": "uninformative",
+        "new_adverse_codes": []
+      },
+      {
+        "file": "aadhaar_011_inpaint_overwrite.jpg",
+        "op": "inpaint_overwrite",
+        "truth": "aadhaar",
+        "clean_decision": "manual_review",
+        "forged_decision": "manual_review",
+        "outcome": "uninformative",
+        "new_adverse_codes": []
+      },
+      {
+        "file": "aadhaar_011_text_splice.jpg",
+        "op": "text_splice",
+        "truth": "aadhaar",
+        "clean_decision": "manual_review",
+        "forged_decision": "manual_review",
+        "outcome": "uninformative",
+        "new_adverse_codes": []
+      },
+      {
+        "file": "aadhaar_012_copy_move.jpg",
+        "op": "copy_move",
+        "truth": "aadhaar",
+        "clean_decision": "manual_review",
+        "forged_decision": "manual_review",
+        "outcome": "uninformative",
+        "new_adverse_codes": [
+          "aadhaar.number.not_found",
+          "extract.aadhaar.not_found"
+        ]
+      },
+      {
+        "file": "aadhaar_012_cross_document_splice.jpg",
+        "op": "cross_document_splice",
+        "truth": "aadhaar",
+        "clean_decision": "manual_review",
+        "forged_decision": "manual_review",
+        "outcome": "uninformative",
+        "new_adverse_codes": []
+      },
+      {
+        "file": "aadhaar_012_inpaint_overwrite.jpg",
+        "op": "inpaint_overwrite",
+        "truth": "aadhaar",
+        "clean_decision": "manual_review",
+        "forged_decision": "manual_review",
+        "outcome": "uninformative",
+        "new_adverse_codes": []
+      },
+      {
+        "file": "aadhaar_012_photo_substitution.jpg",
+        "op": "photo_substitution",
+        "truth": "aadhaar",
+        "clean_decision": "manual_review",
+        "forged_decision": "manual_review",
+        "outcome": "uninformative",
+        "new_adverse_codes": []
+      },
+      {
+        "file": "aadhaar_012_text_splice.jpg",
+        "op": "text_splice",
+        "truth": "aadhaar",
+        "clean_decision": "manual_review",
+        "forged_decision": "manual_review",
+        "outcome": "uninformative",
+        "new_adverse_codes": []
+      },
+      {
+        "file": "aadhaar_013_copy_move.jpg",
+        "op": "copy_move",
+        "truth": "aadhaar",
+        "clean_decision": "manual_review",
+        "forged_decision": "manual_review",
+        "outcome": "uninformative",
+        "new_adverse_codes": []
+      },
+      {
+        "file": "aadhaar_013_cross_document_splice.jpg",
+        "op": "cross_document_splice",
+        "truth": "aadhaar",
+        "clean_decision": "manual_review",
+        "forged_decision": "manual_review",
+        "outcome": "uninformative",
+        "new_adverse_codes": []
+      },
+      {
+        "file": "aadhaar_013_inpaint_overwrite.jpg",
+        "op": "inpaint_overwrite",
+        "truth": "aadhaar",
+        "clean_decision": "manual_review",
+        "forged_decision": "manual_review",
+        "outcome": "uninformative",
+        "new_adverse_codes": []
+      },
+      {
+        "file": "aadhaar_013_photo_substitution.jpg",
+        "op": "photo_substitution",
+        "truth": "aadhaar",
+        "clean_decision": "manual_review",
+        "forged_decision": "manual_review",
+        "outcome": "uninformative",
+        "new_adverse_codes": []
+      },
+      {
+        "file": "aadhaar_013_text_splice.jpg",
+        "op": "text_splice",
+        "truth": "aadhaar",
+        "clean_decision": "manual_review",
+        "forged_decision": "manual_review",
+        "outcome": "uninformative",
+        "new_adverse_codes": []
+      },
+      {
+        "file": "aadhaar_014_copy_move.jpg",
+        "op": "copy_move",
+        "truth": "aadhaar",
+        "clean_decision": "accept",
+        "forged_decision": "accept",
+        "outcome": "missed",
+        "new_adverse_codes": []
+      },
+      {
+        "file": "aadhaar_014_cross_document_splice.jpg",
+        "op": "cross_document_splice",
+        "truth": "aadhaar",
+        "clean_decision": "accept",
+        "forged_decision": "accept",
+        "outcome": "missed",
+        "new_adverse_codes": []
+      },
+      {
+        "file": "aadhaar_014_inpaint_overwrite.jpg",
+        "op": "inpaint_overwrite",
+        "truth": "aadhaar",
+        "clean_decision": "accept",
+        "forged_decision": "reject",
+        "outcome": "caught",
+        "new_adverse_codes": [
+          "aadhaar.qr.dob_mismatch"
+        ]
+      },
+      {
+        "file": "aadhaar_014_text_splice.jpg",
+        "op": "text_splice",
+        "truth": "aadhaar",
+        "clean_decision": "accept",
+        "forged_decision": "accept",
+        "outcome": "missed",
+        "new_adverse_codes": []
+      },
+      {
+        "file": "aadhaar_015_copy_move.jpg",
+        "op": "copy_move",
+        "truth": "aadhaar",
+        "clean_decision": "manual_review",
+        "forged_decision": "manual_review",
+        "outcome": "uninformative",
+        "new_adverse_codes": []
+      },
+      {
+        "file": "aadhaar_015_cross_document_splice.jpg",
+        "op": "cross_document_splice",
+        "truth": "aadhaar",
+        "clean_decision": "manual_review",
+        "forged_decision": "manual_review",
+        "outcome": "uninformative",
+        "new_adverse_codes": []
+      },
+      {
+        "file": "aadhaar_015_inpaint_overwrite.jpg",
+        "op": "inpaint_overwrite",
+        "truth": "aadhaar",
+        "clean_decision": "manual_review",
+        "forged_decision": "manual_review",
+        "outcome": "uninformative",
+        "new_adverse_codes": []
+      },
+      {
+        "file": "aadhaar_015_text_splice.jpg",
+        "op": "text_splice",
+        "truth": "aadhaar",
+        "clean_decision": "manual_review",
+        "forged_decision": "manual_review",
+        "outcome": "uninformative",
+        "new_adverse_codes": []
+      },
+      {
+        "file": "certificate_016_copy_move.jpg",
+        "op": "copy_move",
+        "truth": "certificate",
+        "clean_decision": "accept",
+        "forged_decision": "accept",
+        "outcome": "missed",
+        "new_adverse_codes": []
+      },
+      {
+        "file": "certificate_016_cross_document_splice.jpg",
+        "op": "cross_document_splice",
+        "truth": "certificate",
+        "clean_decision": "accept",
+        "forged_decision": "accept",
+        "outcome": "missed",
+        "new_adverse_codes": []
+      },
+      {
+        "file": "certificate_016_inpaint_overwrite.jpg",
+        "op": "inpaint_overwrite",
+        "truth": "certificate",
+        "clean_decision": "accept",
+        "forged_decision": "manual_review",
+        "outcome": "caught",
+        "new_adverse_codes": [
+          "certificate.issuer.unknown"
+        ]
+      },
+      {
+        "file": "certificate_016_text_splice.jpg",
+        "op": "text_splice",
+        "truth": "certificate",
+        "clean_decision": "accept",
+        "forged_decision": "accept",
+        "outcome": "missed",
+        "new_adverse_codes": []
+      },
+      {
+        "file": "certificate_017_copy_move.jpg",
+        "op": "copy_move",
+        "truth": "certificate",
+        "clean_decision": "manual_review",
+        "forged_decision": "manual_review",
+        "outcome": "uninformative",
+        "new_adverse_codes": []
+      },
+      {
+        "file": "certificate_017_cross_document_splice.jpg",
+        "op": "cross_document_splice",
+        "truth": "certificate",
+        "clean_decision": "manual_review",
+        "forged_decision": "manual_review",
+        "outcome": "uninformative",
+        "new_adverse_codes": []
+      },
+      {
+        "file": "certificate_017_inpaint_overwrite.jpg",
+        "op": "inpaint_overwrite",
+        "truth": "certificate",
+        "clean_decision": "manual_review",
+        "forged_decision": "manual_review",
+        "outcome": "uninformative",
+        "new_adverse_codes": []
+      },
+      {
+        "file": "certificate_017_text_splice.jpg",
+        "op": "text_splice",
+        "truth": "certificate",
+        "clean_decision": "manual_review",
+        "forged_decision": "manual_review",
+        "outcome": "uninformative",
+        "new_adverse_codes": []
+      },
+      {
+        "file": "certificate_018_copy_move.jpg",
+        "op": "copy_move",
+        "truth": "certificate",
+        "clean_decision": "accept",
+        "forged_decision": "accept",
+        "outcome": "missed",
+        "new_adverse_codes": []
+      },
+      {
+        "file": "certificate_018_cross_document_splice.jpg",
+        "op": "cross_document_splice",
+        "truth": "certificate",
+        "clean_decision": "accept",
+        "forged_decision": "accept",
+        "outcome": "missed",
+        "new_adverse_codes": []
+      },
+      {
+        "file": "certificate_018_inpaint_overwrite.jpg",
+        "op": "inpaint_overwrite",
+        "truth": "certificate",
+        "clean_decision": "accept",
+        "forged_decision": "accept",
+        "outcome": "missed",
+        "new_adverse_codes": [
+          "certificate.year.future"
+        ]
+      },
+      {
+        "file": "certificate_018_photo_substitution.jpg",
+        "op": "photo_substitution",
+        "truth": "certificate",
+        "clean_decision": "accept",
+        "forged_decision": "accept",
+        "outcome": "missed",
+        "new_adverse_codes": []
+      },
+      {
+        "file": "certificate_018_text_splice.jpg",
+        "op": "text_splice",
+        "truth": "certificate",
+        "clean_decision": "accept",
+        "forged_decision": "accept",
+        "outcome": "missed",
+        "new_adverse_codes": []
+      },
+      {
+        "file": "certificate_019_copy_move.jpg",
+        "op": "copy_move",
+        "truth": "certificate",
+        "clean_decision": "accept",
+        "forged_decision": "accept",
+        "outcome": "missed",
+        "new_adverse_codes": []
+      },
+      {
+        "file": "certificate_019_cross_document_splice.jpg",
+        "op": "cross_document_splice",
+        "truth": "certificate",
+        "clean_decision": "accept",
+        "forged_decision": "accept",
+        "outcome": "missed",
+        "new_adverse_codes": []
+      },
+      {
+        "file": "certificate_019_inpaint_overwrite.jpg",
+        "op": "inpaint_overwrite",
+        "truth": "certificate",
+        "clean_decision": "accept",
+        "forged_decision": "accept",
+        "outcome": "missed",
+        "new_adverse_codes": []
+      },
+      {
+        "file": "certificate_019_photo_substitution.jpg",
+        "op": "photo_substitution",
+        "truth": "certificate",
+        "clean_decision": "accept",
+        "forged_decision": "accept",
+        "outcome": "missed",
+        "new_adverse_codes": []
+      },
+      {
+        "file": "certificate_019_text_splice.jpg",
+        "op": "text_splice",
+        "truth": "certificate",
+        "clean_decision": "accept",
+        "forged_decision": "accept",
+        "outcome": "missed",
+        "new_adverse_codes": []
+      },
+      {
+        "file": "pan_020_copy_move.jpg",
+        "op": "copy_move",
+        "truth": "pan",
+        "clean_decision": "accept",
+        "forged_decision": "accept",
+        "outcome": "missed",
+        "new_adverse_codes": []
+      },
+      {
+        "file": "pan_020_cross_document_splice.jpg",
+        "op": "cross_document_splice",
+        "truth": "pan",
+        "clean_decision": "accept",
+        "forged_decision": "accept",
+        "outcome": "missed",
+        "new_adverse_codes": []
+      },
+      {
+        "file": "pan_020_inpaint_overwrite.jpg",
+        "op": "inpaint_overwrite",
+        "truth": "pan",
+        "clean_decision": "accept",
+        "forged_decision": "accept",
+        "outcome": "missed",
+        "new_adverse_codes": []
+      },
+      {
+        "file": "pan_020_text_splice.jpg",
+        "op": "text_splice",
+        "truth": "pan",
+        "clean_decision": "accept",
+        "forged_decision": "accept",
+        "outcome": "missed",
+        "new_adverse_codes": []
+      },
+      {
+        "file": "pan_021_copy_move.jpg",
+        "op": "copy_move",
+        "truth": "pan",
+        "clean_decision": "manual_review",
+        "forged_decision": "manual_review",
+        "outcome": "uninformative",
+        "new_adverse_codes": []
+      },
+      {
+        "file": "pan_021_cross_document_splice.jpg",
+        "op": "cross_document_splice",
+        "truth": "pan",
+        "clean_decision": "manual_review",
+        "forged_decision": "manual_review",
+        "outcome": "uninformative",
+        "new_adverse_codes": []
+      },
+      {
+        "file": "pan_021_inpaint_overwrite.jpg",
+        "op": "inpaint_overwrite",
+        "truth": "pan",
+        "clean_decision": "manual_review",
+        "forged_decision": "manual_review",
+        "outcome": "uninformative",
+        "new_adverse_codes": []
+      },
+      {
+        "file": "pan_021_text_splice.jpg",
+        "op": "text_splice",
+        "truth": "pan",
+        "clean_decision": "manual_review",
+        "forged_decision": "manual_review",
+        "outcome": "uninformative",
+        "new_adverse_codes": []
+      },
+      {
+        "file": "pan_022_copy_move.jpg",
+        "op": "copy_move",
+        "truth": "pan",
+        "clean_decision": "accept",
+        "forged_decision": "accept",
+        "outcome": "missed",
+        "new_adverse_codes": []
+      },
+      {
+        "file": "pan_022_cross_document_splice.jpg",
+        "op": "cross_document_splice",
+        "truth": "pan",
+        "clean_decision": "accept",
+        "forged_decision": "accept",
+        "outcome": "missed",
+        "new_adverse_codes": []
+      },
+      {
+        "file": "pan_022_inpaint_overwrite.jpg",
+        "op": "inpaint_overwrite",
+        "truth": "pan",
+        "clean_decision": "accept",
+        "forged_decision": "accept",
+        "outcome": "missed",
+        "new_adverse_codes": []
+      },
+      {
+        "file": "pan_022_photo_substitution.jpg",
+        "op": "photo_substitution",
+        "truth": "pan",
+        "clean_decision": "accept",
+        "forged_decision": "accept",
+        "outcome": "missed",
+        "new_adverse_codes": []
+      },
+      {
+        "file": "pan_022_text_splice.jpg",
+        "op": "text_splice",
+        "truth": "pan",
+        "clean_decision": "accept",
+        "forged_decision": "accept",
+        "outcome": "missed",
+        "new_adverse_codes": []
+      },
+      {
+        "file": "pan_023_copy_move.jpg",
+        "op": "copy_move",
+        "truth": "pan",
+        "clean_decision": "manual_review",
+        "forged_decision": "manual_review",
+        "outcome": "uninformative",
+        "new_adverse_codes": []
+      },
+      {
+        "file": "pan_023_cross_document_splice.jpg",
+        "op": "cross_document_splice",
+        "truth": "pan",
+        "clean_decision": "manual_review",
+        "forged_decision": "manual_review",
+        "outcome": "uninformative",
+        "new_adverse_codes": []
+      },
+      {
+        "file": "pan_023_inpaint_overwrite.jpg",
+        "op": "inpaint_overwrite",
+        "truth": "pan",
+        "clean_decision": "manual_review",
+        "forged_decision": "manual_review",
+        "outcome": "uninformative",
+        "new_adverse_codes": []
+      },
+      {
+        "file": "pan_023_photo_substitution.jpg",
+        "op": "photo_substitution",
+        "truth": "pan",
+        "clean_decision": "manual_review",
+        "forged_decision": "manual_review",
+        "outcome": "uninformative",
+        "new_adverse_codes": []
+      },
+      {
+        "file": "pan_023_text_splice.jpg",
+        "op": "text_splice",
+        "truth": "pan",
+        "clean_decision": "manual_review",
+        "forged_decision": "manual_review",
+        "outcome": "uninformative",
+        "new_adverse_codes": []
+      },
+      {
+        "file": "pan_024_copy_move.jpg",
+        "op": "copy_move",
+        "truth": "pan",
+        "clean_decision": "accept",
+        "forged_decision": "accept",
+        "outcome": "missed",
+        "new_adverse_codes": []
+      },
+      {
+        "file": "pan_024_cross_document_splice.jpg",
+        "op": "cross_document_splice",
+        "truth": "pan",
+        "clean_decision": "accept",
+        "forged_decision": "accept",
+        "outcome": "missed",
+        "new_adverse_codes": []
+      },
+      {
+        "file": "pan_024_inpaint_overwrite.jpg",
+        "op": "inpaint_overwrite",
+        "truth": "pan",
+        "clean_decision": "accept",
+        "forged_decision": "accept",
+        "outcome": "missed",
+        "new_adverse_codes": []
+      },
+      {
+        "file": "pan_024_photo_substitution.jpg",
+        "op": "photo_substitution",
+        "truth": "pan",
+        "clean_decision": "accept",
+        "forged_decision": "accept",
+        "outcome": "missed",
+        "new_adverse_codes": []
+      },
+      {
+        "file": "pan_024_text_splice.jpg",
+        "op": "text_splice",
+        "truth": "pan",
+        "clean_decision": "accept",
+        "forged_decision": "accept",
+        "outcome": "missed",
+        "new_adverse_codes": []
+      },
+      {
+        "file": "pan_025_copy_move.jpg",
+        "op": "copy_move",
+        "truth": "pan",
+        "clean_decision": "manual_review",
+        "forged_decision": "manual_review",
+        "outcome": "uninformative",
+        "new_adverse_codes": []
+      },
+      {
+        "file": "pan_025_cross_document_splice.jpg",
+        "op": "cross_document_splice",
+        "truth": "pan",
+        "clean_decision": "manual_review",
+        "forged_decision": "manual_review",
+        "outcome": "uninformative",
+        "new_adverse_codes": []
+      },
+      {
+        "file": "pan_025_inpaint_overwrite.jpg",
+        "op": "inpaint_overwrite",
+        "truth": "pan",
+        "clean_decision": "manual_review",
+        "forged_decision": "manual_review",
+        "outcome": "uninformative",
+        "new_adverse_codes": []
+      },
+      {
+        "file": "pan_025_photo_substitution.jpg",
+        "op": "photo_substitution",
+        "truth": "pan",
+        "clean_decision": "manual_review",
+        "forged_decision": "manual_review",
+        "outcome": "uninformative",
+        "new_adverse_codes": []
+      },
+      {
+        "file": "pan_025_text_splice.jpg",
+        "op": "text_splice",
+        "truth": "pan",
+        "clean_decision": "manual_review",
+        "forged_decision": "manual_review",
+        "outcome": "uninformative",
+        "new_adverse_codes": []
+      },
+      {
+        "file": "pan_026_copy_move.jpg",
+        "op": "copy_move",
+        "truth": "pan",
+        "clean_decision": "accept",
+        "forged_decision": "accept",
+        "outcome": "missed",
+        "new_adverse_codes": [
+          "forensics.noise.inconsistent"
+        ]
+      },
+      {
+        "file": "pan_026_cross_document_splice.jpg",
+        "op": "cross_document_splice",
+        "truth": "pan",
+        "clean_decision": "accept",
+        "forged_decision": "accept",
+        "outcome": "missed",
+        "new_adverse_codes": []
+      },
+      {
+        "file": "pan_026_inpaint_overwrite.jpg",
+        "op": "inpaint_overwrite",
+        "truth": "pan",
+        "clean_decision": "accept",
+        "forged_decision": "accept",
+        "outcome": "missed",
+        "new_adverse_codes": []
+      },
+      {
+        "file": "pan_026_text_splice.jpg",
+        "op": "text_splice",
+        "truth": "pan",
+        "clean_decision": "accept",
+        "forged_decision": "accept",
+        "outcome": "missed",
+        "new_adverse_codes": []
+      },
+      {
+        "file": "pan_027_copy_move.jpg",
+        "op": "copy_move",
+        "truth": "pan",
+        "clean_decision": "manual_review",
+        "forged_decision": "manual_review",
+        "outcome": "uninformative",
+        "new_adverse_codes": []
+      },
+      {
+        "file": "pan_027_cross_document_splice.jpg",
+        "op": "cross_document_splice",
+        "truth": "pan",
+        "clean_decision": "manual_review",
+        "forged_decision": "manual_review",
+        "outcome": "uninformative",
+        "new_adverse_codes": []
+      },
+      {
+        "file": "pan_027_inpaint_overwrite.jpg",
+        "op": "inpaint_overwrite",
+        "truth": "pan",
+        "clean_decision": "manual_review",
+        "forged_decision": "manual_review",
+        "outcome": "uninformative",
+        "new_adverse_codes": []
+      },
+      {
+        "file": "pan_027_text_splice.jpg",
+        "op": "text_splice",
+        "truth": "pan",
+        "clean_decision": "manual_review",
+        "forged_decision": "manual_review",
+        "outcome": "uninformative",
+        "new_adverse_codes": []
+      }
+    ]
+  }
 }

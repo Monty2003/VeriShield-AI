@@ -28,6 +28,13 @@ minio==7.2.13
 # parsing in home-made verifiers is exactly how signature forgeries happen.
 cryptography==45.0.7
 
+# Reading the Aadhaar Secure QR. zxing-cpp is the decoder: self-contained
+# wheels, and on real phone photographs it reads 5 of 7 card backs where zbar
+# reads 2. pyzbar is an optional fallback, used only when its zbar shared
+# library is present (bundled on Windows, `libzbar0` on Debian/Ubuntu).
+zxing-cpp==3.1.1
+pyzbar==0.1.9
+
 python-dateutil==2.9.0.post0
 rapidfuzz==3.11.0
 

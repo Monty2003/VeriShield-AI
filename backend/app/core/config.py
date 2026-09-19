@@ -56,6 +56,16 @@ class Settings(BaseSettings):
     # has a localhost default that nothing listens on: inferring would make
     # every existing local setup start refusing requests.
     state_backend: str = "memory"
+
+    # Withhold acceptance of an Aadhaar whose Secure QR was not checked.
+    #
+    # Nothing printed on an Aadhaar -- name, date of birth, photograph -- has a
+    # checksum. Only the signed QR authenticates them, and it is usually on the
+    # back. Measured: from a single image, 60 of 122 synthetic forgeries were
+    # auto-accepted, because nothing on the printed side could contradict them.
+    # With this on, an Aadhaar is accepted only once its QR has been compared --
+    # on the same image, or on the back submitted alongside.
+    aadhaar_require_qr: bool = True
     qdrant_url: str = "http://localhost:6333"
 
     minio_endpoint: str = "localhost:9000"

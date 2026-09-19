@@ -14,6 +14,14 @@ to. The words are what catches them.
 This is the same principle as an MRZ check digit, arrived at differently: the
 document repeats information about itself, so an inconsistent copy is provably
 altered without consulting any issuing authority.
+
+Not every certificate is a marksheet. Course-completion, internship,
+participation, training and award certificates have no marks table, no board
+and nothing that repeats itself -- measured, 8 of 12 certificates collected for
+this project were of that kind. Nothing on them can be checked offline, so
+they are told apart and sent to a person with what to check, rather than run
+through marksheet rules that happen to find the word "University" somewhere
+and pass them.
 """
 
 from __future__ import annotations
@@ -61,6 +69,34 @@ _BOARDS = (
     (re.compile(r"\bUNIVERSITY\b", re.I), "University"),
 )
 
+# Wording of course, participation, internship, training and award
+# certificates. Shared with the classifier, which uses it as type evidence.
+CREDENTIAL_WORDING = re.compile(
+    r"THIS\s+IS\s+TO\s+CERTIFY|CERTIF(?:Y|IES|IED)\s+THAT"
+    r"|SUCCESSFULLY\s+(?:COMPLETED|PARTICIPATED)|HAS\s+(?:PARTICIPATED|COMPLETED|BEEN\s+AWARDED)"
+    r"|FOR\s+PARTICIPAT|IN\s+RECOGNITION\s+OF|AWARDED\s+TO|PRESENTED\s+TO"
+    r"|OF\s+(?:COMPLETION|PARTICIPATION|ACHIEVEMENT|APPRECIATION|EXCELLENCE|MERIT)"
+    r"|\bINTERNSHIP\b|CONGRATULAT",
+    re.I,
+)
+
+# A marks table. Its presence makes a document a marksheet whatever else it says:
+# a CBSE statement is also "awarded" and "certified", and the table is what
+# carries the checkable redundancy.
+_MARKS_TABLE = re.compile(
+    r"MARKS\s*OBTAINED|\bTHEORY\b|\bPRACTICAL\b|\bSEMESTER\b|\bS?CGPA\b|\bSGPA\b"
+    r"|GRADE\s*POINT|ROLL\s*N[O0]|MARK\s*-?\s*SHEET|STATEMENT\s*OF\s*MARKS"
+    r"|TOTAL\s*MARKS|MAX(?:IMUM)?\s*MARKS",
+    re.I,
+)
+
+# Where a certificate says it can be checked: an ID or a web address.
+_CERTIFICATE_ID = re.compile(
+    r"(?:CERTIFICATE|CREDENTIAL|CERT\.?)\s*(?:ID|NO\.?|NUMBER|#)\s*[:.\-]?\s*[A-Z0-9][A-Z0-9/\-]{4,}",
+    re.I,
+)
+_WEB_ADDRESS = re.compile(r"https?://[^\s]+|\bwww\.[^\s]+", re.I)
+
 _ROLL_NO = re.compile(r"ROLL\s*N[O0]\.?\s*:?\s*([0-9]{6,12})", re.I)
 _YEAR = re.compile(r"\b(19[5-9]\d|20[0-4]\d)\b")
 
@@ -91,6 +127,24 @@ def words_to_number(phrase: str) -> int | None:
     return total + current
 
 
+_WORD_ALTERNATION = "|".join(
+    sorted(set(_UNITS) | set(_TENS) | set(_SCALES), key=len, reverse=True)
+)
+_NUMBER_PHRASE = re.compile(
+    r"\b((?:" + _WORD_ALTERNATION + r")(?:[\s-]+(?:" + _WORD_ALTERNATION + r"))*)\b"
+)
+
+
+def _number_word_matches(text: str) -> list[tuple[str, int, int]]:
+    """Spelled-out numbers as (phrase, value, position in the upper-cased text)."""
+    results: list[tuple[str, int, int]] = []
+    for match in _NUMBER_PHRASE.finditer(text.upper()):
+        value = words_to_number(match.group(1))
+        if value is not None:
+            results.append((match.group(1), value, match.start(1)))
+    return results
+
+
 def find_number_word_phrases(text: str) -> list[tuple[str, int]]:
     """
     Find spelled-out numbers and their values.
@@ -98,20 +152,20 @@ def find_number_word_phrases(text: str) -> list[tuple[str, int]]:
     Consecutive number words are grouped, so "SIXTY THREE" yields 63 rather
     than 60 and 3 separately.
     """
-    upper = text.upper()
-    results: list[tuple[str, int]] = []
+    return [(phrase, value) for phrase, value, _ in _number_word_matches(text)]
 
-    for match in re.finditer(
-        r"\b((?:" + "|".join(sorted(set(_UNITS) | set(_TENS) | set(_SCALES), key=len, reverse=True))
-        + r")(?:[\s-]+(?:" + "|".join(sorted(set(_UNITS) | set(_TENS) | set(_SCALES), key=len, reverse=True))
-        + r"))*)\b",
-        upper,
-    ):
-        phrase = match.group(1)
-        value = words_to_number(phrase)
-        if value is not None:
-            results.append((phrase, value))
-    return results
+
+def certificate_kind(text: str) -> str:
+    """
+    "marksheet" or "credential".
+
+    A credential is a course, participation, internship, training or award
+    certificate: its wording says so and it has no marks table. Anything else
+    stays a marksheet, which is what this rulebook was built for.
+    """
+    if CREDENTIAL_WORDING.search(text) and not _MARKS_TABLE.search(text):
+        return "credential"
+    return "marksheet"
 
 
 def validate_certificate(_mrz=None, fields: ExtractedFields | None = None) -> list[Signal]:
@@ -140,6 +194,9 @@ def validate_certificate(_mrz=None, fields: ExtractedFields | None = None) -> li
                 ),
             )
         ]
+
+    if certificate_kind(text) == "credential":
+        return _validate_credential(text)
 
     signals: list[Signal] = []
 
@@ -187,12 +244,24 @@ def validate_certificate(_mrz=None, fields: ExtractedFields | None = None) -> li
                 title="Roll number",
                 status=SignalStatus.PASS,
                 severity=Severity.INFO,
-                reason=f"Roll number {roll.group(1)} was read from the certificate.",
+                reason=(
+                    f"A roll number (ending {roll.group(1)[-4:]}) was read from "
+                    f"the certificate."
+                ),
                 evidence={"roll_number": roll.group(1)},
             )
         )
 
-    # --- examination year ---
+    signals.extend(_year_signals(text))
+
+    # --- the real check: totals stated in digits AND in words ---
+    signals.extend(_check_totals_against_words(text))
+
+    return signals
+
+
+def _year_signals(text: str) -> list[Signal]:
+    signals: list[Signal] = []
     years = sorted({int(y) for y in _YEAR.findall(text)})
     this_year = date.today().year
     if years:
@@ -226,10 +295,91 @@ def validate_certificate(_mrz=None, fields: ExtractedFields | None = None) -> li
                     evidence={"years_found": years},
                 )
             )
+    return signals
 
-    # --- the real check: totals stated in digits AND in words ---
-    signals.extend(_check_totals_against_words(text))
 
+def _validate_credential(text: str) -> list[Signal]:
+    """
+    A course, participation, internship, training or award certificate.
+
+    There is no offline check for one: no checksum, no signature this system
+    can verify, no public register it can consult. Saying so -- and pointing at
+    whatever the certificate offers for checking it -- is the honest result.
+    A pass here would be a pass for having found nothing wrong in a document
+    nothing could be checked on.
+    """
+    signals: list[Signal] = [
+        signal(
+            code="certificate.kind.credential",
+            stage=Stage.VALIDATE,
+            title="Certificate kind",
+            status=SignalStatus.SKIP,
+            severity=Severity.INFO,
+            reason=(
+                "This is a course, participation, internship, training or award "
+                "certificate rather than a marksheet, so the marksheet checks -- "
+                "issuing board, and totals in digits against words -- do not apply."
+            ),
+        )
+    ]
+
+    has_id = bool(_CERTIFICATE_ID.search(text))
+    domains = sorted(
+        {
+            re.sub(r"^(?:https?://)?(?:www\.)?", "", address, flags=re.I).split("/")[0].lower()
+            for address in _WEB_ADDRESS.findall(text)
+        }
+        - {""}
+    )
+    if has_id or domains:
+        where = []
+        if has_id:
+            where.append("a certificate ID")
+        if domains:
+            where.append("a web address (" + ", ".join(domains[:3]) + ")")
+        signals.append(
+            signal(
+                code="certificate.reference.found",
+                stage=Stage.VALIDATE,
+                title="How to confirm it",
+                status=SignalStatus.PASS,
+                severity=Severity.INFO,
+                reason=(
+                    f"The certificate prints {' and '.join(where)}. That is how the "
+                    f"issuer lets it be confirmed: look it up on the issuer's own "
+                    f"site, which should show the same name and details."
+                ),
+                evidence={"certificate_id_printed": has_id, "domains": domains[:5]},
+            )
+        )
+
+    signals.extend(_year_signals(text))
+
+    signals.append(
+        signal(
+            code="certificate.credential.unverifiable",
+            stage=Stage.VALIDATE,
+            title="Offline verification",
+            # WARN and LOW: nothing here suggests forgery. Blocking: nothing
+            # here establishes authenticity either, and acceptance must rest
+            # on something that was actually checked.
+            status=SignalStatus.WARN,
+            severity=Severity.LOW,
+            blocking=True,
+            reason=(
+                "Nothing on a certificate of this kind can be verified offline: it "
+                "carries no checksum, no signature this system can check, and no "
+                "public register it can consult. Confirm it with the issuer -- "
+                + (
+                    "through the certificate ID or web address it prints, or the "
+                    "link in its QR code."
+                    if has_id or domains
+                    else "it prints no certificate ID or web address, so contact "
+                    "the issuing organisation directly."
+                )
+            ),
+        )
+    )
     return signals
 
 
@@ -246,10 +396,15 @@ def _check_totals_against_words(text: str) -> list[Signal]:
     and comparing against the whole document would find a coincidental match
     for almost any value.
     """
-    phrases = find_number_word_phrases(text)
+    # Each phrase with its OWN position. Locating it by searching for its text
+    # found the first occurrence instead: on a genuine marksheet whose total
+    # "SEVENTY" came after a row reading "SEVENTY THREE", 70 was compared with
+    # the 73 of that earlier row and reported as altered.
+    matches = _number_word_matches(text)
     # Ignore bare "ONE"/"TWO" and similar: they appear in ordinary prose
     # ("one of", "two years") far more often than as a stated total.
-    phrases = [(p, v) for p, v in phrases if " " in p or v >= 20]
+    matches = [(p, v, at) for p, v, at in matches if " " in p or v >= 20]
+    phrases = [(p, v) for p, v, _ in matches]
 
     if not phrases:
         return [
@@ -272,17 +427,22 @@ def _check_totals_against_words(text: str) -> list[Signal]:
     matched: list[dict] = []
     mismatched: list[dict] = []
 
-    for phrase, value in phrases:
-        position = upper.find(phrase)
+    for phrase, value, position in matches:
         # Numeric tokens printed just before the words, which is where the
         # table places the figure this phrase spells out.
         preceding = re.findall(r"\b(\d{1,3})\b", upper[max(0, position - 60) : position])
         candidates = [int(n) for n in preceding]
+        # OCR does not always keep the table's reading order: on a genuine
+        # marksheet the words came out first and their figure on the next line.
+        # Only the single figure immediately after is accepted, so a changed
+        # mark cannot find its old value somewhere further down the table.
+        end = position + len(phrase)
+        following = re.search(r"\b(\d{1,3})\b", upper[end : end + 25])
 
-        if not candidates:
-            continue
-        if value in candidates:
+        if value in candidates or (following and int(following.group(1)) == value):
             matched.append({"words": phrase, "value": value})
+        elif not candidates:
+            continue
         else:
             mismatched.append(
                 {"words": phrase, "words_value": value, "digits_nearby": candidates[-4:]}

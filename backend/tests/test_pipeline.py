@@ -403,3 +403,86 @@ class TestClassifierOnDegradedOCR:
         """A reviewer must be able to see the cue was fuzzy, not exact."""
         _, _, evidence = classify_text(self.MANGLED[1])
         assert any("approximate" in e.cue for e in evidence)
+
+
+class TestBoardMarksheets:
+    """
+    School-board marksheets, as OCR actually reads them.
+
+    Regression from real data: one of four genuine certificates came back
+    UNKNOWN at 0.40 -- it showed the word "certificate" and nothing else the
+    classifier knew, because its table said theory and practical rather than
+    semester and CGPA. Another matched no issuer at all because OCR read
+    "BOARD OF SECONDARY" as "BOARD OFSECONDARY".
+    """
+
+    def test_issuer_joined_to_the_next_word_is_still_the_issuer(self):
+        doc_type, conf, evidence = classify_text(
+            "CENTRAL BOARD OFSECONDARY EDUCATION\nMARKS STATEMENT CUM CERTIFICATE"
+        )
+        assert doc_type == DocumentType.CERTIFICATE
+        assert any(e.cue == "issuing institution" for e in evidence)
+
+    def test_theory_and_practical_columns_are_academic_fields(self):
+        doc_type, _, evidence = classify_text(
+            "SCHOOL CERTIFICATE\nSUBJECT THEORY PRACTICAL TOTAL\nENGLISH 72 18 90"
+        )
+        assert doc_type == DocumentType.CERTIFICATE
+        assert any(e.cue == "academic fields" for e in evidence)
+
+    def test_a_marksheet_column_alone_decides_nothing(self):
+        # One cue is corroboration, never a classification.
+        assert classify_text("THEORY PRACTICAL\n72 18")[0] == DocumentType.UNKNOWN
+
+    def test_a_back_whose_notes_mention_theory_is_still_a_back(self):
+        # Regression: adding THEORY/PRACTICAL as front cues gave a real
+        # marksheet back one weak front cue, which skipped the reverse-side
+        # check and turned a recognised back into UNKNOWN.
+        from app.pipeline.stages.classify import classify
+
+        text = (
+            "SCHEME OF STUDIES\nPOSITIONAL GRADE is awarded on the basis of\n"
+            "GRADING PATTERN: 9-POINT scale\nTheory and practical marks are shown separately"
+        )
+        doc_type, _, side, _ = classify(text)
+        assert doc_type == DocumentType.CERTIFICATE
+        assert side == "back"
+
+
+class TestPanQr:
+    """
+    A PAN QR is reported, never scored: its format is not published, so an
+    unread payload is no evidence either way.
+    """
+
+    PAN_FRONT = "\n".join(
+        [
+            "INCOME TAX DEPARTMENT",
+            "GOVT. OF INDIA",
+            "Permanent Account Number Card",
+            "ABCPK1234L",
+            "RAHUL KUMAR",
+            "01/01/1990",
+        ]
+    )
+
+    def _analyse(self, monkeypatch, document_image, payloads):
+        from app.rules import aadhaar_qr
+
+        monkeypatch.setattr(aadhaar_qr, "extract_qr_payloads", lambda data, thorough=True: payloads)
+        return analyze_document(
+            document_image, "pan.jpg", ocr_provider=InjectedTextProvider(self.PAN_FRONT)
+        )
+
+    def test_a_qr_on_a_pan_front_is_reported(self, monkeypatch, document_image):
+        result = self._analyse(monkeypatch, document_image, [b"1" * 3604])
+        found = next(s for s in result.signals if s.code == "pan.qr.present")
+        assert found.status == SignalStatus.SKIP
+        assert "PAN QR Code Reader" in found.reason
+
+    def test_it_does_not_move_the_assessment(self, monkeypatch, document_image):
+        with_qr = self._analyse(monkeypatch, document_image, [b"1" * 3604])
+        without = self._analyse(monkeypatch, document_image, [])
+        assert "pan.qr.present" not in {s.code for s in without.signals}
+        assert with_qr.risk.decision == without.risk.decision
+        assert with_qr.risk.score == without.risk.score

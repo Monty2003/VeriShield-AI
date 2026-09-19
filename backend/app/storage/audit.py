@@ -43,7 +43,12 @@ _PROBE_CACHE_SECONDS = 10.0
 # Field names whose values must never be written verbatim to the audit store.
 # Masking happens here rather than at the call site so that a new caller cannot
 # forget to do it.
-_SENSITIVE_FIELDS = {"document_number", "aadhaar", "pan", "raw_text", "mrz_line1", "mrz_line2"}
+_SENSITIVE_FIELDS = {
+    "document_number", "aadhaar", "pan", "raw_text", "mrz_line1", "mrz_line2",
+    # A marksheet's roll number, and a certificate QR's address -- which often
+    # ends in the certificate's own ID.
+    "roll_number", "url",
+}
 
 
 def _mask_value(value: Any) -> str:

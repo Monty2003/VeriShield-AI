@@ -188,7 +188,7 @@ export const DOCUMENT_TYPE_LABEL: Record<DocumentType, string> = {
 };
 
 /** Types this project supports end to end. Others still run through it. */
-export const SUPPORTED_TYPES: DocumentType[] = ['aadhaar', 'pan', 'certificate'];
+export const SUPPORTED_TYPES: DocumentType[] = ['aadhaar', 'pan', 'certificate', 'passport'];
 
 export const ALL_DOCUMENT_TYPES: DocumentType[] = [
   'aadhaar',

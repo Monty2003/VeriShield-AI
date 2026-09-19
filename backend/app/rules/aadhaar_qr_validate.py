@@ -491,9 +491,24 @@ def compare_qr_photo(
                 code="aadhaar.qr.card_no_face",
                 stage=Stage.FACE,
                 title="Portrait vs QR photograph",
-                status=SignalStatus.SKIP,
-                severity=Severity.INFO,
-                reason="No portrait was located on the card to compare against.",
+                # Blocking, not a SKIP. The QR holds UIDAI's photograph and the
+                # card shows no face to compare it with -- which is also exactly
+                # what a clumsily pasted substitute portrait produces. Measured:
+                # one synthetic photo swap left no detectable face, the check
+                # never ran, and the pair was auto-accepted. The photograph is
+                # the one field an impostor most needs to replace, so when its
+                # only check cannot run, a person looks instead.
+                status=SignalStatus.WARN,
+                severity=Severity.LOW,
+                blocking=True,
+                reason=(
+                    "The QR carries UIDAI's photograph of the holder, but no "
+                    "portrait could be located on the card to compare it with, "
+                    "so the photograph -- the field a substitution attack "
+                    "replaces -- is unchecked. Compare the printed portrait with "
+                    "the QR photograph by eye, or photograph the front again "
+                    "with the portrait in focus and free of glare."
+                ),
             )
         ]
 

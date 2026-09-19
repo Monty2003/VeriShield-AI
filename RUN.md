@@ -86,6 +86,15 @@ wakes), should set `VERISHIELD_STATE_BACKEND=redis` and `VERISHIELD_REDIS_URL`.
 With Redis configured but unreachable, authenticated requests are refused (503)
 rather than admitted without checking whether the session was signed out.
 
+An Aadhaar is auto-accepted only once its signed Secure QR has been compared
+with the printed side -- on the same image, or on the back submitted with it
+(the Verify page's second dropzone, or a case). A front on its own goes to
+manual review with `aadhaar.qr.unchecked`: nothing printed on it except the
+number carries a checksum, so an edited name, date of birth or photograph
+would pass unseen. `VERISHIELD_AADHAAR_REQUIRE_QR=false` turns this off, for
+workflows that deliberately accept front-only submissions and review them by
+other means.
+
 ## Regenerating the tamper dataset
 
 ```powershell

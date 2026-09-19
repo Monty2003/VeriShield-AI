@@ -8,20 +8,14 @@
  */
 
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { Layers3, Play, RotateCcw, UserRound } from 'lucide-react';
+import { Layers3, Play, RotateCcw } from 'lucide-react';
 import Dropzone from '../components/Dropzone';
-import DocumentReport, { DocumentTab } from '../components/DocumentReport';
-import RiskGauge from '../components/RiskGauge';
-import SignalList from '../components/SignalList';
-import ContributionChart from '../components/ContributionChart';
-import QrSignatureBadge from '../components/QrSignatureBadge';
-import ReviewPanel from '../components/ReviewPanel';
-import { Banner, Empty, SectionHeading, Spinner } from '../components/ui';
+import CaseResult from '../components/CaseResult';
+import { Banner, SectionHeading, Spinner } from '../components/ui';
 import { useAuth } from '../auth/AuthContext';
 import { describeError } from '../api/client';
 import { verifyCase } from '../api/endpoints';
 import type { VerificationResult } from '../types/api';
-import { cx } from '../lib/format';
 
 const MAX_DOCUMENTS = 6;
 
@@ -35,7 +29,6 @@ export default function CasePage() {
   const [progress, setProgress] = useState(0);
   const [error, setError] = useState('');
   const [result, setResult] = useState<VerificationResult | null>(null);
-  const [active, setActive] = useState(0);
 
   const previewsRef = useRef<string[]>([]);
   const [previews, setPreviews] = useState<string[]>([]);
@@ -68,7 +61,6 @@ export default function CasePage() {
       setPreviews(previewsRef.current);
 
       setResult(response);
-      setActive(0);
     } catch (err) {
       setError(describeError(err));
     } finally {
@@ -85,8 +77,6 @@ export default function CasePage() {
     releasePreviews();
     setPreviews([]);
   }
-
-  const crossSignals = result?.cross_document_signals ?? [];
 
   return (
     <div className="mx-auto max-w-7xl space-y-6">
@@ -184,94 +174,7 @@ export default function CasePage() {
       )}
 
       {result && (
-        <div className="animate-fade-up space-y-6">
-          <div className="grid gap-4 lg:grid-cols-[19rem_1fr]">
-            <div className="space-y-4">
-            <div className="card p-5">
-              {result.overall_risk ? (
-                <RiskGauge risk={result.overall_risk} />
-              ) : (
-                <p className="text-sm text-slate-400">No case-level risk was produced.</p>
-              )}
-              <div className="mt-5 border-t border-ink-700 pt-4">
-                <p className="section-title">Case</p>
-                <p className="mt-1 break-all font-mono text-[11px] text-slate-500">
-                  {result.case_id}
-                </p>
-                <p className="mt-2 text-xs text-slate-400">
-                  {result.documents.length} document
-                  {result.documents.length === 1 ? '' : 's'}
-                  {selfie.length ? ' + presenter photo' : ''}
-                </p>
-              </div>
-            </div>
-
-            {/* One decision for the case: it is the pair of documents, and the
-                person presenting them, that is being signed off. */}
-            <ReviewPanel
-              subject="case"
-              subjectId={result.case_id}
-              systemDecision={result.overall_risk?.decision}
-              blocked={(result.overall_risk?.blocking_reasons ?? []).length > 0}
-            />
-            </div>
-
-            <div className="space-y-4">
-              <div>
-                <SectionHeading
-                  title="Cross-document consistency"
-                  hint="Risk that exists only when documents are read together."
-                />
-                <div className="mb-3">
-                  <QrSignatureBadge signals={crossSignals} />
-                </div>
-                {crossSignals.length > 0 ? (
-                  <SignalList
-                    signals={crossSignals}
-                    title="Cross-document signals"
-                    emptyText="No cross-document signal matches this filter."
-                  />
-                ) : (
-                  <Empty
-                    icon={<UserRound className="h-5 w-5" aria-hidden />}
-                    title="Nothing to compare"
-                  >
-                    Cross-document checks need at least two documents carrying the
-                    same field, or a selfie to compare against a portrait.
-                  </Empty>
-                )}
-              </div>
-
-              {result.overall_risk && (
-                <ContributionChart contributions={result.overall_risk.contributions} />
-              )}
-            </div>
-          </div>
-
-          <div>
-            <SectionHeading title="Documents in this case" />
-            <div className="flex gap-2 overflow-x-auto pb-2 scrollbar-none">
-              {result.documents.map((document, index) => (
-                <DocumentTab
-                  key={document.document_id}
-                  analysis={document}
-                  active={index === active}
-                  onClick={() => setActive(index)}
-                />
-              ))}
-            </div>
-          </div>
-
-          <div className={cx('rounded-xl border border-ink-700 p-4 sm:p-5')}>
-            {result.documents[active] && (
-              <DocumentReport
-                reviewable={false}
-                analysis={result.documents[active]}
-                previewUrl={previews[active] ?? null}
-              />
-            )}
-          </div>
-        </div>
+        <CaseResult result={result} previews={previews} hasSelfie={selfie.length > 0} />
       )}
     </div>
   );

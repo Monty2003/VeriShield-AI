@@ -17,6 +17,7 @@ import time
 import uuid
 from datetime import datetime, timezone
 
+from app.core.config import settings
 from app.pipeline.stages import classify as classify_stage
 from app.pipeline.stages import face as face_stage
 from app.pipeline.stages import forensics as forensics_stage
@@ -187,6 +188,27 @@ def analyze_document(
             analysis.side = DocumentSide(side)
             signals.extend(cls_signals)
 
+        # --- an image that is only an Aadhaar QR ---
+        #
+        # A close-up of the QR alone is often the only photograph of a dense
+        # Secure QR that decodes, and it carries no printed wording for the
+        # classifier. It was being filed as UNKNOWN, and the QR stage runs only
+        # on Aadhaar images -- so the one image made to be read was never read.
+        # A QR that parses as UIDAI's Secure QR format is itself the strongest
+        # type evidence there is.
+        if analysis.document_type == DocumentType.UNKNOWN:
+            qr_side, err = _timed(
+                lambda: _classify_by_aadhaar_qr(image_bytes), timings, "classify_qr"
+            )
+            if err is not None:
+                signals.append(err)
+            elif qr_side:
+                signals[:] = [s for s in signals if s.code != "classify.unknown"]
+                analysis.document_type = DocumentType.AADHAAR
+                analysis.type_confidence = 0.95
+                analysis.side = DocumentSide.BACK
+                signals.extend(qr_side)
+
     # --- extract ---
     fields_result, err = _timed(
         lambda: extract_fields(
@@ -226,12 +248,37 @@ def analyze_document(
         from app.rules.aadhaar import validate_aadhaar_qr
 
         qr_signals, err = _timed(
-            lambda: validate_aadhaar_qr(image_bytes, analysis.fields), timings, "qr"
+            # The expensive whole-image upscaling is spent only where a QR is
+            # expected: not on a card front, which in the genuine set never
+            # carried one that the cheaper routes missed.
+            lambda: validate_aadhaar_qr(
+                image_bytes,
+                analysis.fields,
+                thorough=analysis.side != DocumentSide.FRONT,
+                # A back is already blocked as a back; the requirement is for
+                # the side that carries the identity fields.
+                require=settings.aadhaar_require_qr
+                and analysis.side != DocumentSide.BACK,
+            ),
+            timings,
+            "qr",
         )
         if err is not None:
             signals.append(err)
         else:
             signals.extend(qr_signals)
+    elif analysis.document_type == DocumentType.CERTIFICATE:
+        cert_qr, err = _timed(lambda: _certificate_qr_signals(image_bytes), timings, "qr")
+        if err is not None:
+            signals.append(err)
+        else:
+            signals.extend(cert_qr)
+    elif analysis.document_type == DocumentType.PAN and analysis.side != DocumentSide.BACK:
+        pan_qr, err = _timed(lambda: _pan_qr_signals(image_bytes), timings, "qr")
+        if err is not None:
+            signals.append(err)
+        else:
+            signals.extend(pan_qr)
 
     # --- registry (Layer 8) ---
     #
@@ -326,6 +373,174 @@ def analyze_document(
     return analysis
 
 
+# Services that forward a link somewhere else. A QR through one of these hides
+# where it ends up, which is exactly what checking a certificate link is for --
+# one of 3 certificate QRs collected for this project went through one.
+_LINK_REDIRECTORS = {
+    "bit.ly", "tinyurl.com", "t.ly", "goo.gl", "rb.gy", "cutt.ly", "is.gd", "ow.ly",
+    "buff.ly", "tiny.cc", "rebrand.ly", "shorturl.at", "s.id", "t.co", "lnkd.in",
+    "qr-codes.io", "qrco.de", "qr.link", "me-qr.com", "qrfy.io", "qr.io", "linktr.ee",
+}
+
+
+def _certificate_qr_signals(image_bytes: bytes) -> list[Signal]:
+    """
+    What a certificate's QR points to. Reported for a person to follow; never fetched.
+
+    Many course and training certificates carry a QR linking to the issuer's
+    verification page -- the one real way to confirm them. The link is not
+    opened here: the service stays offline, and fetching an address taken from
+    an uploaded image would let any upload make this server visit any site.
+    """
+    from urllib.parse import urlparse
+
+    from app.rules.aadhaar_qr import extract_qr_payloads
+
+    found: list[Signal] = []
+    for payload in extract_qr_payloads(image_bytes, thorough=False)[:2]:
+        text = payload.decode("utf-8", "replace").strip()
+        address = text if "://" in text else ("http://" + text if text.lower().startswith("www.") else "")
+        parsed = urlparse(address) if address else None
+        if parsed is None or parsed.scheme not in ("http", "https") or not parsed.hostname:
+            found.append(
+                signal(
+                    code="certificate.qr.text",
+                    stage=Stage.DATABASE,
+                    title="Certificate QR code",
+                    status=SignalStatus.SKIP,
+                    severity=Severity.INFO,
+                    reason=(
+                        "A QR code was read from this certificate. It carries text "
+                        "rather than a web address, so it points to nothing that "
+                        "could confirm the certificate."
+                    ),
+                    evidence={"length": len(payload)},
+                )
+            )
+            continue
+
+        domain = parsed.hostname.lower().removeprefix("www.")
+        insecure = parsed.scheme == "http"
+        found.append(
+            signal(
+                code="certificate.qr.link",
+                stage=Stage.DATABASE,
+                title="Certificate QR code",
+                status=SignalStatus.SKIP,
+                severity=Severity.INFO,
+                reason=(
+                    f"The certificate's QR code links to {domain}. Opening it is how "
+                    f"this certificate is confirmed: check that the site belongs to "
+                    f"the issuer and shows the same name and details. The link was "
+                    f"not opened here."
+                    + (" It is not an encrypted (https) address." if insecure else "")
+                ),
+                # "url" is masked in the audit trail; the reviewer sees it live.
+                evidence={"domain": domain, "url": address[:300], "https": not insecure},
+            )
+        )
+        if domain in _LINK_REDIRECTORS:
+            found.append(
+                signal(
+                    code="certificate.qr.redirect",
+                    stage=Stage.DATABASE,
+                    title="Certificate QR code",
+                    status=SignalStatus.WARN,
+                    severity=Severity.LOW,
+                    reason=(
+                        f"The QR goes through {domain}, a link-shortening or redirect "
+                        f"service, so where it finally leads cannot be seen without "
+                        f"opening it. Issuers usually link straight to their own "
+                        f"site; open it with care and check where it lands."
+                    ),
+                    evidence={"domain": domain},
+                )
+            )
+    return found
+
+
+def _pan_qr_signals(image_bytes: bytes) -> list[Signal]:
+    """
+    Report a PAN card's QR without pretending to verify it.
+
+    PAN cards issued since 2018 carry a QR on the front. Unlike UIDAI's, its
+    format is not published: on four genuine cards it is a 1,496-byte payload
+    that is not compressed like the Aadhaar QR and carries no readable text, so
+    nothing in it can be compared with the card here. It is reported so a
+    reviewer knows it is there and how to check it -- and it does not move the
+    score, because an unread QR is no evidence either way.
+    """
+    from app.rules.aadhaar_qr import extract_qr_payloads
+
+    if not extract_qr_payloads(image_bytes, thorough=False):
+        return []
+    return [
+        signal(
+            code="pan.qr.present",
+            stage=Stage.DATABASE,
+            title="PAN QR code",
+            status=SignalStatus.SKIP,
+            severity=Severity.INFO,
+            reason=(
+                "A QR code was read from this PAN card. The Income Tax "
+                "Department's PAN QR format is not published, so it could not be "
+                "decoded or checked here. To confirm the card, scan the QR with "
+                "the department's official PAN QR Code Reader app and compare "
+                "what it shows with the card."
+            ),
+        )
+    ]
+
+
+def _classify_by_aadhaar_qr(image_bytes: bytes) -> list[Signal]:
+    """
+    Classification signals for an image identified only by its Aadhaar QR.
+
+    Empty when the image carries no Secure QR. The QR side is treated as the
+    reverse of the card: nothing printed about the holder is in it, so it is
+    withheld alone -- and answered, like any reverse side, by the front
+    arriving in the same case.
+    """
+    from app.rules.aadhaar_qr import read_aadhaar_qr
+
+    qr, _ = read_aadhaar_qr(image_bytes, thorough=True)
+    if qr is None:
+        return []
+    return [
+        signal(
+            code="classify.reverse_side",
+            stage=Stage.CLASSIFY,
+            title="Document side",
+            status=SignalStatus.WARN,
+            severity=Severity.LOW,
+            confidence=0.9,
+            blocking=True,
+            reason=(
+                "This image shows an Aadhaar Secure QR without the printed "
+                "front of the card. The QR identified it; nothing printed about "
+                "the holder is in it, so it cannot be accepted on its own. "
+                "Submit it together with the front of the card, and the QR will "
+                "be compared with what the front prints."
+            ),
+            evidence={"side": "back", "cues": ["Aadhaar Secure QR"]},
+        ),
+        signal(
+            code="classify.identified",
+            stage=Stage.CLASSIFY,
+            title="Document type",
+            status=SignalStatus.PASS,
+            severity=Severity.INFO,
+            confidence=0.95,
+            reason=(
+                f"Identified as the QR side of an Aadhaar from its Secure QR "
+                f"({qr.version or 'unversioned'}), which parsed as UIDAI's format. "
+                f"No printed wording was needed."
+            ),
+            evidence={"type": DocumentType.AADHAAR.value, "cues": ["Aadhaar Secure QR"]},
+        ),
+    ]
+
+
 def _cross_check_aadhaar_qr(
     analyses: list[DocumentAnalysis],
     sources: list[tuple[bytes, str]],
@@ -356,8 +571,10 @@ def _cross_check_aadhaar_qr(
     if not with_fields:
         return []
 
-    for _analysis, data in aadhaar:
-        qr, _note = read_aadhaar_qr(data)
+    for analysis_, data in aadhaar:
+        # Same flag as the document's own QR stage, so this is answered from
+        # the payload cache rather than decoded a second time.
+        qr, _note = read_aadhaar_qr(data, thorough=analysis_.side != DocumentSide.FRONT)
         if qr is None:
             continue
 
@@ -372,24 +589,66 @@ def _cross_check_aadhaar_qr(
         #
         # The portrait lives on the FRONT and the QR on the back, so the
         # comparison needs the image that actually has a face on it.
+        #
+        # When no face was found on either side, the comparison still runs,
+        # against the side that carries the printed fields: that is where the
+        # portrait belongs, and "no portrait on the card" is a finding. An
+        # earlier version skipped the check here, so a substituted photo that
+        # also defeated face detection passed with nothing said at all.
         portrait_image = next(
             (
                 data
                 for analysis, data in aadhaar
                 if analysis.face_region is not None
             ),
-            None,
+            next(data for analysis, data in aadhaar if analysis is best),
         )
-        if portrait_image is not None:
-            from app.rules.aadhaar_qr_validate import compare_qr_photo
+        from app.rules.aadhaar_qr_validate import compare_qr_photo
 
-            signals.extend(compare_qr_photo(qr, portrait_image, face_provider))
+        signals.extend(compare_qr_photo(qr, portrait_image, face_provider))
 
         for produced in signals:
             produced.evidence["cross_side"] = True
         return signals
 
     return []
+
+
+def _has_both_sides(documents: list[DocumentAnalysis], doc_type: DocumentType) -> bool:
+    sides = {d.side for d in documents if d.document_type == doc_type}
+    return DocumentSide.FRONT in sides and DocumentSide.BACK in sides
+
+
+def _satisfied_blocks(
+    documents: list[DocumentAnalysis], cross_signals: list[Signal]
+) -> set[str]:
+    """
+    Per-document blocks that the case as a whole has answered.
+
+    A block is only lifted by what actually answers it. The reverse-side
+    blocks are answered by the front being present -- they asked for the other
+    side, and it is here. The unchecked-QR block is NOT answered by the back
+    merely being present: only by its QR having been read and compared with the
+    front. A back whose QR would not decode leaves the front exactly as
+    unauthenticated as it was on its own.
+    """
+    satisfied: set[str] = set()
+    for doc_type in {d.document_type for d in documents}:
+        if _has_both_sides(documents, doc_type):
+            satisfied.update(
+                {
+                    "classify.reverse_side",
+                    "aadhaar.number.not_found",
+                    "pan.number.not_found",
+                    "validate.did_not_run",
+                }
+            )
+    if any(
+        s.code == "aadhaar.qr.present" and s.evidence.get("cross_side")
+        for s in cross_signals
+    ):
+        satisfied.add("aadhaar.qr.unchecked")
+    return satisfied
 
 
 def verify_case(
@@ -502,40 +761,30 @@ def verify_case(
 
     result.cross_document_signals = cross_signals
 
-    # If the case contains both faces of a document type, the reverse-side
-    # block has been answered -- the caller supplied exactly what it asked for.
-    satisfied: set[str] = set()
-    sides_by_type: dict[DocumentType, set[DocumentSide]] = {}
-    for doc in result.documents:
-        sides_by_type.setdefault(doc.document_type, set()).add(doc.side)
-    for doc_type, sides in sides_by_type.items():
-        if DocumentSide.FRONT in sides and DocumentSide.BACK in sides:
-            # Both blocks a reverse-side image raises are answered by the
-            # front being present: it asked for the other side, and it is
-            # here, carrying the identity fields the back does not print.
-            satisfied.update(
-                {
-                    "classify.reverse_side",
-                    "aadhaar.number.not_found",
-                    "pan.number.not_found",
-                    "validate.did_not_run",
-                }
+    # Blocks a single image raises that the case as a whole has answered --
+    # see _satisfied_blocks for which, and why only those.
+    satisfied = _satisfied_blocks(result.documents, cross_signals)
+    complete = {
+        d.document_type
+        for d in result.documents
+        if _has_both_sides(result.documents, d.document_type)
+    }
+    for doc_type in sorted(complete, key=lambda t: t.value):
+        cross_signals.append(
+            signal(
+                code="cross.both_sides_present",
+                stage=Stage.CROSS_DOC,
+                title="Document completeness",
+                status=SignalStatus.PASS,
+                severity=Severity.INFO,
+                reason=(
+                    f"Both the front and the reverse of the "
+                    f"{doc_type.value.replace('_', ' ')} were submitted, so the "
+                    f"identity fields and the machine-readable side are both "
+                    f"available."
+                ),
             )
-            cross_signals.append(
-                signal(
-                    code="cross.both_sides_present",
-                    stage=Stage.CROSS_DOC,
-                    title="Document completeness",
-                    status=SignalStatus.PASS,
-                    severity=Severity.INFO,
-                    reason=(
-                        f"Both the front and the reverse of the "
-                        f"{doc_type.value.replace('_', ' ')} were submitted, so the "
-                        f"identity fields and the machine-readable side are both "
-                        f"available."
-                    ),
-                )
-            )
+        )
 
     result.overall_risk = assess_case(
         [d.risk for d in result.documents if d.risk],

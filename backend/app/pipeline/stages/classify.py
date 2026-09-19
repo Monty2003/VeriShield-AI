@@ -20,6 +20,7 @@ from __future__ import annotations
 import re
 from dataclasses import dataclass
 
+from app.rules.certificate import CREDENTIAL_WORDING
 from app.schemas.document import DocumentType
 from app.schemas.signals import Severity, Signal, SignalStatus, Stage, signal
 
@@ -91,9 +92,37 @@ _RULES: dict[DocumentType, list[tuple[re.Pattern[str], float, str]]] = {
         (re.compile(r"\b(ENTRIES|DURATION OF STAY)\b", re.I), 0.30, "visa condition fields"),
     ],
     DocumentType.CERTIFICATE: [
-        (re.compile(r"\b(UNIVERSITY|INSTITUTE|BOARD OF)\b", re.I), 0.35, "issuing institution"),
-        (re.compile(r"\b(DEGREE|DIPLOMA|MARKSHEET|CERTIFICATE)\b", re.I), 0.40, "credential word"),
-        (re.compile(r"\b(SEMESTER|CGPA|PERCENTAGE|ROLL NO)\b", re.I), 0.30, "academic fields"),
+        # "BOARD OF" carries no trailing word boundary: OCR routinely joins it
+        # to the next word ("BOARD OFSECONDARY"), and on real marksheets that
+        # join made the issuer invisible to an exact-phrase pattern.
+        # Councils, academies, colleges and ministries issue certificates too;
+        # "MINISTRY OF" joins like "BOARD OF" ("MINISTRYOF COMMERCE").
+        (
+            re.compile(
+                r"\b(UNIVERSITY|INSTITUTE|COUNCIL|ACADEMY|COLLEGE)\b|\bBOARD\s*OF|\bMINISTRY\s*OF",
+                re.I,
+            ),
+            0.35,
+            "issuing institution",
+        ),
+        (re.compile(r"\b(DEGREE|DIPLOMA|MARKSHEET|CERTIFICATE|CERTIFICATION)\b", re.I), 0.40, "credential word"),
+        # The wording of course, internship, participation and award
+        # certificates -- 8 of 12 collected for this project. Most name no board
+        # and show no marks, so without this they could only ever show the
+        # word "certificate", one cue short of a type.
+        (CREDENTIAL_WORDING, 0.30, "certificate wording"),
+        # University wording (semester, CGPA) and school-board wording: a board
+        # marksheet has no semesters, but its table is headed marks obtained,
+        # theory and practical. Without these a school marksheet could show
+        # only one cue and fall below the threshold.
+        (
+            re.compile(
+                r"\b(SEMESTER|CGPA|SGPA|PERCENTAGE|ROLL\s*NO|MARKS\s*OBTAINED|THEORY|PRACTICAL)\b",
+                re.I,
+            ),
+            0.30,
+            "academic fields",
+        ),
     ],
 }
 
@@ -266,24 +295,23 @@ def classify_text(text: str) -> tuple[DocumentType, float, list[TypeEvidence]]:
             scores[doc_type] = min(1.0, total)
             evidence[doc_type] = found
 
-    if not scores:
-        # No front-side evidence. Before giving up, check whether this is the
-        # REVERSE of a known document -- a real photograph of a real card,
-        # just the face that carries no identity fields.
-        for doc_type, cues in _BACK_CUES.items():
-            matched = [(name, p) for p, name in cues if p.search(text)]
-            if len(matched) >= MIN_BACK_CUES:
-                return (
-                    doc_type,
-                    min(1.0, 0.35 + 0.15 * len(matched)),
-                    [
-                        TypeEvidence(cue=f"{name} (reverse side)", weight=0.15, matched=pat.pattern[:40])
-                        for name, pat in matched
-                    ],
-                )
-        return DocumentType.UNKNOWN, 0.0, []
-
+    # Not enough front-side evidence. Before giving up, check whether this is
+    # the REVERSE of a known document -- a real photograph of a real card, just
+    # the face that carries no identity fields.
+    #
+    # Checked whenever the front evidence falls short, not only when there is
+    # none: a reverse side's small print can carry a stray front cue. A real
+    # marksheet back explains its grading in terms of theory and practical
+    # marks, and when those became academic-field cues, that one weak cue
+    # (0.30) used to skip this check and turn a recognised back into UNKNOWN.
     ranked = sorted(scores.items(), key=lambda kv: kv[1], reverse=True)
+    if not ranked or ranked[0][1] < MIN_TYPE_CONFIDENCE:
+        reverse = _reverse_side(text)
+        if reverse is not None:
+            return reverse
+        if not ranked:
+            return DocumentType.UNKNOWN, 0.0, []
+
     best_type, best_score = ranked[0]
 
     if best_score < MIN_TYPE_CONFIDENCE:
@@ -294,6 +322,22 @@ def classify_text(text: str) -> tuple[DocumentType, float, list[TypeEvidence]]:
         return DocumentType.UNKNOWN, best_score, evidence.get(best_type, [])
 
     return best_type, best_score, evidence[best_type]
+
+
+def _reverse_side(text: str) -> tuple[DocumentType, float, list[TypeEvidence]] | None:
+    """The document type whose reverse this is, when enough back cues show."""
+    for doc_type, cues in _BACK_CUES.items():
+        matched = [(name, p) for p, name in cues if p.search(text)]
+        if len(matched) >= MIN_BACK_CUES:
+            return (
+                doc_type,
+                min(1.0, 0.35 + 0.15 * len(matched)),
+                [
+                    TypeEvidence(cue=f"{name} (reverse side)", weight=0.15, matched=pat.pattern[:40])
+                    for name, pat in matched
+                ],
+            )
+    return None
 
 
 def classify(text: str) -> tuple[DocumentType, float, str, list[Signal]]:

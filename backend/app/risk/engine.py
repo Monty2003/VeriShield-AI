@@ -312,15 +312,23 @@ def assess_case(
     # for being complete.
     satisfied = satisfied_blocks or set()
     outstanding = [
-        code
+        (code, reason)
         for risk in document_risks
-        for code in risk.blocking_codes
+        for code, reason in zip(risk.blocking_codes, risk.blocking_reasons)
         if code not in satisfied
     ]
+    cross_blocking = [s for s in cross_document_signals if s.is_blocking_failure]
 
-    case_blocked = (
-        any(s.is_blocking_failure for s in cross_document_signals) or bool(outstanding)
-    )
+    case_blocked = bool(cross_blocking) or bool(outstanding)
+
+    # Reported, not just acted on: a case held for review must say what is
+    # holding it, or the person reading it cannot tell what to fix. One entry
+    # per code -- two documents raising the same block are one thing to do.
+    blocks: dict[str, str] = {}
+    for s in cross_blocking:
+        blocks.setdefault(s.code, s.reason)
+    for code, reason in outstanding:
+        blocks.setdefault(code, reason)
     decision = engine._decide(band, doc_confidence, blocked=case_blocked)
 
     reasons: list[str] = []
@@ -342,5 +350,7 @@ def assess_case(
         confidence=round(doc_confidence, 3),
         top_reasons=reasons[:6],
         contributions=cross.contributions,
+        blocking_codes=list(blocks),
+        blocking_reasons=list(blocks.values()),
         coverage={"cross_document": "ran" if cross_document_signals else "skipped"},
     )

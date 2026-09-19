@@ -13,7 +13,10 @@ well it performs on the JPEGs it was tested with.
 
 from __future__ import annotations
 
+import hashlib
 import io
+import threading
+from collections import OrderedDict
 
 import cv2
 import numpy as np
@@ -64,13 +67,55 @@ def open_pil(data: bytes) -> Image.Image:
         raise UnsupportedImageError(f"could not decode image: {exc}") from exc
 
 
+# The last few decodes, keyed by a digest of the bytes.
+#
+# Every stage of the pipeline decodes the image it is handed -- ingest, OCR,
+# forensics, face (twice), the QR reader -- and each decode of a 12-megapixel
+# phone photo costs about half a second. Measured on the genuine set that was
+# ~2.5 seconds per document spent decoding the same bytes over and over.
+#
+# Callers always receive a copy. Several stages draw on or threshold the array
+# they get, and a shared array would let one stage's edits leak into the next.
+# Two entries are enough: one document is processed at a time, and a case
+# compares at most a pair.
+_DECODE_CACHE: OrderedDict[bytes, np.ndarray] = OrderedDict()
+_DECODE_CACHE_SIZE = 2
+_DECODE_LOCK = threading.Lock()
+
+
 def decode_image(data: bytes) -> np.ndarray:
     """
-    Decode to a BGR array for OpenCV.
+    Decode to a BGR array for OpenCV. Returns a fresh copy on every call.
 
     Tries OpenCV first because it is faster and handles the common cases, then
     falls back to Pillow, which is what actually reads HEIC.
     """
+    key = hashlib.blake2b(data, digest_size=16).digest()
+    with _DECODE_LOCK:
+        cached = _DECODE_CACHE.get(key)
+        if cached is not None:
+            _DECODE_CACHE.move_to_end(key)
+            return cached.copy()
+
+    array = _decode_uncached(data)
+    with _DECODE_LOCK:
+        _DECODE_CACHE[key] = array
+        _DECODE_CACHE.move_to_end(key)
+        while len(_DECODE_CACHE) > _DECODE_CACHE_SIZE:
+            _DECODE_CACHE.popitem(last=False)
+    return array.copy()
+
+
+def clear_decode_cache() -> None:
+    with _DECODE_LOCK:
+        _DECODE_CACHE.clear()
+
+
+def _decode_uncached(data: bytes) -> np.ndarray:
+    # OpenCV answers an empty buffer with an assertion failure rather than a
+    # None, which would surface as an internal error instead of a reason.
+    if not data:
+        raise UnsupportedImageError("the file is empty")
     array = cv2.imdecode(np.frombuffer(data, np.uint8), cv2.IMREAD_COLOR)
     if array is not None:
         return array

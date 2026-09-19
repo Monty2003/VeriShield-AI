@@ -101,7 +101,12 @@ def mask(number: str) -> str:
     return f"XXXX XXXX {digits[-4:]}"
 
 
-def validate_aadhaar_qr(image_bytes: bytes, fields: ExtractedFields) -> list[Signal]:
+def validate_aadhaar_qr(
+    image_bytes: bytes,
+    fields: ExtractedFields,
+    thorough: bool = True,
+    require: bool = False,
+) -> list[Signal]:
     """
     Check the card against its own Secure QR, when it has one.
 
@@ -111,8 +116,33 @@ def validate_aadhaar_qr(image_bytes: bytes, fields: ExtractedFields) -> list[Sig
     from app.rules.aadhaar_qr import read_aadhaar_qr
     from app.rules.aadhaar_qr_validate import validate_against_qr
 
-    qr, note = read_aadhaar_qr(image_bytes)
+    qr, note = read_aadhaar_qr(image_bytes, thorough=thorough)
     if qr is None:
+        if require:
+            return [
+                signal(
+                    code="aadhaar.qr.unchecked",
+                    stage=Stage.DATABASE,
+                    title="Aadhaar Secure QR",
+                    # WARN rather than FAIL, and LOW severity: nothing here is
+                    # evidence of forgery. Blocking, because nothing here is
+                    # evidence of authenticity either -- the printed side has
+                    # no checksum on anything but the number.
+                    status=SignalStatus.WARN,
+                    severity=Severity.LOW,
+                    blocking=True,
+                    reason=(
+                        note
+                        + " Until UIDAI's signed QR is compared with the card, only "
+                        "the number has been checked -- nothing else printed on it "
+                        "carries a checksum, so an edited name, date of birth or "
+                        "photograph would look exactly like this. If this card's QR "
+                        "is on the back, submit the back with it; if it is on this "
+                        "side, photograph it again closer and in focus. An older "
+                        "card with no QR at all needs a person to check it."
+                    ),
+                )
+            ]
         return [
             signal(
                 code="aadhaar.qr.absent",
