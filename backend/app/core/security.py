@@ -75,12 +75,17 @@ ROLE_PERMISSIONS: dict[Role, set[str]] = {
         "verify:read",
         "verify:reveal_identifiers",
         "audit:read",
+        # Record the human decision the system hands over. Not given to
+        # operators: the person who submits a document is not the one who
+        # should sign it off.
+        "review:decide",
     },
     Role.ADMIN: {
         "verify:submit",
         "verify:read",
         "verify:reveal_identifiers",
         "audit:read",
+        "review:decide",
         "users:manage",
     },
 }

@@ -20,12 +20,14 @@ import { ArcElement, Chart as ChartJS, Legend, Tooltip } from 'chart.js';
 import { Doughnut } from 'react-chartjs-2';
 import { Activity, Database, FileSearch, Layers3, RefreshCw, Search } from 'lucide-react';
 import { Banner, Empty, SectionHeading, Skeleton, Stat } from '../components/ui';
+import ReviewPanel, { OUTCOMES } from '../components/ReviewPanel';
 import { describeError } from '../api/client';
 import { documentHistory, recentCases, recentDocuments } from '../api/endpoints';
 import type {
   Decision,
   DocumentHistoryResponse,
   RecordedDocument,
+  ReviewDecision,
 } from '../types/api';
 import {
   DECISION_HEX,
@@ -50,9 +52,24 @@ interface CaseRecord {
     top_reasons?: string[];
     blocking_reasons?: string[];
   } | null;
+  submitted_by?: string | null;
+  review?: ReviewDecision | null;
 }
 
 type Tab = 'documents' | 'cases';
+
+/**
+ * Waiting on a person: nobody has decided yet, and the system did not clear
+ * it outright. A clean accept can still be decided, but it is not queued --
+ * a queue holding everything is a queue nobody works through.
+ */
+function awaitingReview(
+  review: ReviewDecision | null | undefined,
+  decision: Decision | undefined,
+  blocked: boolean,
+): boolean {
+  return !review && (decision !== 'accept' || blocked);
+}
 
 const EMPTY_COUNTS: Record<Decision, number> = {
   accept: 0,
@@ -62,6 +79,7 @@ const EMPTY_COUNTS: Record<Decision, number> = {
 
 export default function CasesPage() {
   const [tab, setTab] = useState<Tab>('documents');
+  const [awaitingOnly, setAwaitingOnly] = useState(false);
 
   const [documents, setDocuments] = useState<RecordedDocument[]>([]);
   const [cases, setCases] = useState<CaseRecord[]>([]);
@@ -96,6 +114,43 @@ export default function CasesPage() {
   }, [load]);
 
   const rows = tab === 'documents' ? documents : cases;
+
+  const documentQueue = useMemo(
+    () =>
+      documents.filter((d) =>
+        awaitingReview(d.review, d.risk?.decision, (d.risk?.blocking_reasons ?? []).length > 0),
+      ),
+    [documents],
+  );
+  const caseQueue = useMemo(
+    () =>
+      cases.filter((c) =>
+        awaitingReview(
+          c.review,
+          c.overall_risk?.decision,
+          (c.overall_risk?.blocking_reasons ?? []).length > 0,
+        ),
+      ),
+    [cases],
+  );
+  const queue = tab === 'documents' ? documentQueue : caseQueue;
+  const shownDocuments = awaitingOnly ? documentQueue : documents;
+  const shownCases = awaitingOnly ? caseQueue : cases;
+
+  // How often a person, having looked, agreed with the system -- counted only
+  // over decisions that took a position with or against it. Low agreement is
+  // the signal that the scoring needs attention.
+  const agreement = useMemo(() => {
+    const reviews: ReviewDecision[] = [];
+    (tab === 'documents' ? documents : cases).forEach((r) => {
+      if (r.review && r.review.agrees_with_system !== null) reviews.push(r.review);
+    });
+    if (reviews.length === 0) return null;
+    return {
+      rate: reviews.filter((r) => r.agrees_with_system).length / reviews.length,
+      count: reviews.length,
+    };
+  }, [tab, documents, cases]);
 
   const distribution = useMemo(() => {
     const counts = { ...EMPTY_COUNTS };
@@ -184,21 +239,43 @@ export default function CasesPage() {
             <span className="opacity-60">{option.count}</span>
           </button>
         ))}
+        <button
+          onClick={() => setAwaitingOnly((value) => !value)}
+          className={cx(
+            'ml-auto flex items-center gap-2 border px-4 py-2 font-mono text-[11px] uppercase tracking-wider transition-colors',
+            awaitingOnly
+              ? 'border-verdict-review bg-verdict-review/20 text-verdict-review'
+              : 'border-verdict-review/40 text-slate-500 hover:border-verdict-review',
+          )}
+          aria-pressed={awaitingOnly}
+        >
+          Awaiting review
+          <span className="opacity-70">{queue.length}</span>
+        </button>
       </div>
 
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <Stat label={`${tab} recorded`} value={rows.length} />
         <Stat
+          label="Awaiting review"
+          value={queue.length}
+          hint="undecided, not cleared by the system"
+          accent={queue.length ? DECISION_HEX.manual_review : undefined}
+        />
+        <Stat
+          label="Reviewer agreement"
+          value={agreement ? percent(agreement.rate) : '--'}
+          hint={
+            agreement
+              ? `over ${agreement.count} decision${agreement.count === 1 ? '' : 's'} that took a position`
+              : 'no decisions with or against the system yet'
+          }
+        />
+        <Stat
           label="Mean risk"
           value={meanScore === null ? '--' : meanScore.toFixed(1)}
           hint="across what is listed"
         />
-        <Stat
-          label="Sent to review"
-          value={distribution.manual_review}
-          accent={DECISION_HEX.manual_review}
-        />
-        <Stat label="Rejected" value={distribution.reject} accent={DECISION_HEX.reject} />
       </div>
 
       <div className="grid gap-4 lg:grid-cols-[1fr_18rem]">
@@ -233,22 +310,29 @@ export default function CasesPage() {
             </Empty>
           )}
 
-          {!loading && tab === 'documents' && documents.length > 0 && (
+          {!loading && awaitingOnly && rows.length > 0 && queue.length === 0 && (
+            <Empty title="Nothing is waiting for a decision">
+              Every record here has been decided, or was cleared by the system.
+            </Empty>
+          )}
+
+          {!loading && tab === 'documents' && shownDocuments.length > 0 && (
             <div className="card divide-y divide-cyber-cyan/10">
-              {documents.map((record, index) => (
+              {shownDocuments.map((record, index) => (
                 <DocumentRow
                   key={record.document_id ?? index}
                   record={record}
                   onLookup={lookup}
+                  onDecided={load}
                 />
               ))}
             </div>
           )}
 
-          {!loading && tab === 'cases' && cases.length > 0 && (
+          {!loading && tab === 'cases' && shownCases.length > 0 && (
             <div className="card divide-y divide-cyber-cyan/10">
-              {cases.map((record, index) => (
-                <CaseRow key={record.case_id ?? index} record={record} />
+              {shownCases.map((record, index) => (
+                <CaseRow key={record.case_id ?? index} record={record} onDecided={load} />
               ))}
             </div>
           )}
@@ -380,13 +464,16 @@ function Verdict({ decision, score }: { decision?: Decision; score?: number }) {
 function DocumentRow({
   record,
   onLookup,
+  onDecided,
 }: {
   record: RecordedDocument;
   onLookup: (fingerprint: string) => void;
+  onDecided: () => void;
 }) {
   const risk = record.risk;
   const colour = risk?.decision ? DECISION_HEX[risk.decision] : '#64748b';
   const blocked = (risk?.blocking_reasons ?? []).length > 0;
+  const awaiting = awaitingReview(record.review, risk?.decision, blocked);
 
   return (
     <details className="group">
@@ -415,6 +502,7 @@ function DocumentRow({
             blocked
           </span>
         )}
+        <ReviewChip review={record.review} awaiting={awaiting} />
         <Verdict decision={risk?.decision} score={risk?.score} />
       </summary>
 
@@ -459,15 +547,26 @@ function DocumentRow({
             check for resubmissions of this exact file &rarr;
           </button>
         )}
+
+        {record.document_id && (
+          <ReviewPanel
+            subject="document"
+            subjectId={record.document_id}
+            systemDecision={risk?.decision}
+            blocked={blocked}
+            onDecided={onDecided}
+          />
+        )}
       </div>
     </details>
   );
 }
 
-function CaseRow({ record }: { record: CaseRecord }) {
+function CaseRow({ record, onDecided }: { record: CaseRecord; onDecided: () => void }) {
   const risk = record.overall_risk;
   const colour = risk?.decision ? DECISION_HEX[risk.decision] : '#64748b';
   const blocked = (risk?.blocking_reasons ?? []).length > 0;
+  const awaiting = awaitingReview(record.review, risk?.decision, blocked);
   const count = record.documents?.length ?? 0;
 
   return (
@@ -492,6 +591,7 @@ function CaseRow({ record }: { record: CaseRecord }) {
             blocked
           </span>
         )}
+        <ReviewChip review={record.review} awaiting={awaiting} />
         <Verdict decision={risk?.decision} score={risk?.score} />
       </summary>
 
@@ -522,7 +622,43 @@ function CaseRow({ record }: { record: CaseRecord }) {
             </ul>
           </div>
         )}
+
+        {record.case_id && (
+          <ReviewPanel
+            subject="case"
+            subjectId={record.case_id}
+            systemDecision={risk?.decision}
+            blocked={blocked}
+            onDecided={onDecided}
+          />
+        )}
       </div>
     </details>
+  );
+}
+
+function ReviewChip({
+  review,
+  awaiting,
+}: {
+  review: ReviewDecision | null | undefined;
+  awaiting: boolean;
+}) {
+  if (review) {
+    const look = OUTCOMES[review.outcome];
+    return (
+      <span
+        className={cx('chip shrink-0', look.className)}
+        title={review.note ? `${review.reviewer}: ${review.note}` : review.reviewer}
+      >
+        {look.label}
+      </span>
+    );
+  }
+  if (!awaiting) return null;
+  return (
+    <span className="chip shrink-0 border-dashed border-verdict-review text-verdict-review">
+      awaiting review
+    </span>
   );
 }

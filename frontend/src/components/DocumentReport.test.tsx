@@ -141,7 +141,7 @@ const analysis: DocumentAnalysis = {
 };
 
 test('shows a blocking failure separately from the risk score', () => {
-  render(<DocumentReport analysis={analysis} />);
+  render(<DocumentReport reviewable={false} analysis={analysis} />);
 
   // A low score and a withheld acceptance must both be visible at once --
   // collapsing them into one number is the mistake this UI exists to avoid.
@@ -151,12 +151,12 @@ test('shows a blocking failure separately from the risk score', () => {
 });
 
 test('distinguishes a skipped check from an errored one', () => {
-  render(<DocumentReport analysis={analysis} />);
+  render(<DocumentReport reviewable={false} analysis={analysis} />);
   expect(screen.getByText(/could not run/i)).toBeInTheDocument();
   expect(screen.getByText(/not applicable/i)).toBeInTheDocument();
 });
 
 test('survives a document with no risk assessment at all', () => {
-  render(<DocumentReport analysis={{ ...analysis, risk: null, signals: [] }} />);
+  render(<DocumentReport reviewable={false} analysis={{ ...analysis, risk: null, signals: [] }} />);
   expect(screen.getByText(/no risk assessment was produced/i)).toBeInTheDocument();
 });

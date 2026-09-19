@@ -24,13 +24,19 @@ import SignalList from './SignalList';
 import EvidenceImage from './EvidenceImage';
 import FieldGrid from './FieldGrid';
 import QrSignatureBadge from './QrSignatureBadge';
+import ReviewPanel from './ReviewPanel';
 
 interface Props {
   analysis: DocumentAnalysis;
   previewUrl?: string | null;
+  /**
+   * Show the human-decision panel. Off inside a case, where the decision is
+   * made once for the whole case rather than per document.
+   */
+  reviewable?: boolean;
 }
 
-export default function DocumentReport({ analysis, previewUrl }: Props) {
+export default function DocumentReport({ analysis, previewUrl, reviewable = true }: Props) {
   const [activeCode, setActiveCode] = useState<string | null>(null);
   const risk = analysis.risk;
   const totalMs = Object.values(analysis.processing_ms).reduce((a, b) => a + b, 0);
@@ -103,6 +109,15 @@ export default function DocumentReport({ analysis, previewUrl }: Props) {
                 ))}
               </ol>
             </div>
+          )}
+
+          {reviewable && (
+            <ReviewPanel
+              subject="document"
+              subjectId={analysis.document_id}
+              systemDecision={risk?.decision}
+              blocked={(risk?.blocking_reasons ?? []).length > 0}
+            />
           )}
 
           <PipelineTrace
