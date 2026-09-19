@@ -28,6 +28,7 @@ export default function LoginPage() {
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [reveal, setReveal] = useState(false);
+  const [remember, setRemember] = useState(false);
 
   const from = (location.state as { from?: string } | null)?.from ?? '/verify';
 
@@ -37,7 +38,7 @@ export default function LoginPage() {
 
   async function onSubmit(event: React.FormEvent) {
     event.preventDefault();
-    const ok = await signIn(username.trim(), password);
+    const ok = await signIn(username.trim(), password, remember);
     if (ok) navigate(from, { replace: true });
   }
 
@@ -147,6 +148,24 @@ export default function LoginPage() {
               </div>
             </div>
           </div>
+
+          <label className="mt-4 flex cursor-pointer items-start gap-3">
+            <input
+              type="checkbox"
+              checked={remember}
+              onChange={(event) => setRemember(event.target.checked)}
+              className="mt-0.5 h-4 w-4 shrink-0 accent-slate-300"
+            />
+            <span>
+              <span className="block text-xs font-medium text-slate-200">
+                Keep me signed in on this device
+              </span>
+              <span className="mt-0.5 block text-[11px] leading-relaxed text-slate-500">
+                Only on a computer no one else uses. Otherwise the session ends
+                when this tab or the browser is closed.
+              </span>
+            </span>
+          </label>
 
           {error && (
             <div className="mt-4">

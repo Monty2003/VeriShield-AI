@@ -16,7 +16,7 @@ import {
   useState,
 } from 'react';
 import type { ReactNode } from 'react';
-import { describeError, tokens } from '../api/client';
+import { describeError, revokeSession, tokens } from '../api/client';
 import * as api from '../api/endpoints';
 import type { CurrentUser } from '../types/api';
 
@@ -26,7 +26,8 @@ interface AuthValue {
   booting: boolean;
   signingIn: boolean;
   error: string;
-  signIn: (username: string, password: string) => Promise<boolean>;
+  /** `remember` keeps the session on this device; otherwise it ends with the tab. */
+  signIn: (username: string, password: string, remember?: boolean) => Promise<boolean>;
   signOut: () => Promise<void>;
   can: (permission: string) => boolean;
   clearError: () => void;
@@ -46,6 +47,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     let cancelled = false;
 
     async function restore() {
+      // A session the old behaviour kept on this device without asking:
+      // end it on the server too, so the token is dead, not just forgotten.
+      const legacy = tokens.takeLegacy();
+      if (legacy) void revokeSession(legacy);
+
       if (!tokens.access()) {
         if (!cancelled) setBooting(false);
         return;
@@ -66,9 +72,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     };
   }, []);
 
-  const signIn = useCallback(async (username: string, password: string) => {
+  const signIn = useCallback(async (username: string, password: string, remember = false) => {
     setSigningIn(true);
     setError('');
+    tokens.clear();
+    tokens.rememberDevice(remember);
     try {
       await api.login(username, password);
       setUser(await api.fetchMe());
@@ -87,6 +95,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const signOut = useCallback(async () => {
     await api.logout();
+    // The next person to sign in on this device decides afresh.
+    tokens.rememberDevice(false);
     setUser(null);
   }, []);
 

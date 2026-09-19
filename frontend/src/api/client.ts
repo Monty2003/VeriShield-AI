@@ -19,21 +19,114 @@ const BASE_URL = process.env.REACT_APP_API_URL ?? '';
 
 const ACCESS_KEY = 'vs_access_token';
 const REFRESH_KEY = 'vs_refresh_token';
+const REMEMBER_KEY = 'vs_remember_device';
 
 // --- token storage -------------------------------------------------------
+//
+// A sign-in lasts as long as the browser tab, unless the user asks this device
+// to remember them. Tokens used to live in localStorage unconditionally: the
+// refresh token kept renewing them, so anyone who opened the app on that
+// computer -- days later, in a new browser session -- was already inside a
+// console that handles identity documents.
+//
+// Storage can throw (private windows, blocked site data); every access is
+// guarded, and a failure reads as "no session", which fails closed.
+
+function storage(kind: 'local' | 'session'): Storage | null {
+  try {
+    return kind === 'local' ? window.localStorage : window.sessionStorage;
+  } catch {
+    return null;
+  }
+}
+
+function remembered(): boolean {
+  try {
+    return storage('local')?.getItem(REMEMBER_KEY) === '1';
+  } catch {
+    return false;
+  }
+}
+
+function active(): Storage | null {
+  return storage(remembered() ? 'local' : 'session');
+}
+
+function read(key: string): string | null {
+  try {
+    return active()?.getItem(key) ?? null;
+  } catch {
+    return null;
+  }
+}
 
 export const tokens = {
-  access: () => localStorage.getItem(ACCESS_KEY),
-  refresh: () => localStorage.getItem(REFRESH_KEY),
+  access: () => read(ACCESS_KEY),
+  refresh: () => read(REFRESH_KEY),
   save(access: string, refresh?: string | null) {
-    localStorage.setItem(ACCESS_KEY, access);
-    if (refresh) localStorage.setItem(REFRESH_KEY, refresh);
+    try {
+      active()?.setItem(ACCESS_KEY, access);
+      if (refresh) active()?.setItem(REFRESH_KEY, refresh);
+    } catch {
+      // Unstorable means signed in for this page only -- not an error.
+    }
   },
+  /** Everywhere, so signing out leaves nothing behind in either store. */
   clear() {
-    localStorage.removeItem(ACCESS_KEY);
-    localStorage.removeItem(REFRESH_KEY);
+    for (const kind of ['local', 'session'] as const) {
+      try {
+        storage(kind)?.removeItem(ACCESS_KEY);
+        storage(kind)?.removeItem(REFRESH_KEY);
+      } catch {
+        // nothing stored there to leave behind
+      }
+    }
+  },
+  /** Where the next sign-in is kept: this device (true) or this tab (false). */
+  rememberDevice(yes: boolean) {
+    try {
+      if (yes) storage('local')?.setItem(REMEMBER_KEY, '1');
+      else storage('local')?.removeItem(REMEMBER_KEY);
+    } catch {
+      // falls back to the tab, the safer of the two
+    }
+  },
+  remembersDevice: () => remembered(),
+  /**
+   * An access token left in localStorage by the old always-remember
+   * behaviour, removed as it is returned so it can be revoked once.
+   */
+  takeLegacy(): string | null {
+    if (remembered()) return null;
+    try {
+      const local = storage('local');
+      const legacy = local?.getItem(ACCESS_KEY) ?? null;
+      local?.removeItem(ACCESS_KEY);
+      local?.removeItem(REFRESH_KEY);
+      return legacy;
+    } catch {
+      return null;
+    }
   },
 };
+
+/**
+ * End a session on the server given only its access token.
+ *
+ * Plain axios, not `api`: this must not pick up the current tab's token or
+ * trigger the refresh-and-redirect handling on a 401 -- an already-expired
+ * leftover is the expected case, and it needs no handling at all.
+ */
+export async function revokeSession(accessToken: string): Promise<void> {
+  try {
+    await axios.post(`${BASE_URL}/api/v1/auth/logout`, null, {
+      headers: { Authorization: `Bearer ${accessToken}` },
+      timeout: 10_000,
+    });
+  } catch {
+    // Expired or already revoked: nothing left to end.
+  }
+}
 
 // --- instance ------------------------------------------------------------
 
