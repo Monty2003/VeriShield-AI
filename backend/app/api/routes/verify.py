@@ -89,7 +89,9 @@ async def _read_upload(file: UploadFile) -> bytes:
     return data
 
 
-def _persist(analysis: DocumentAnalysis, data: bytes) -> None:
+def _persist(
+    analysis: DocumentAnalysis, data: bytes, submitted_by: str | None = None
+) -> None:
     """
     Record the assessment and retain the image, if the stores are reachable.
 
@@ -98,7 +100,7 @@ def _persist(analysis: DocumentAnalysis, data: bytes) -> None:
     verification into an error the caller has to handle.
     """
     fingerprint = document_fingerprint(data)
-    audit_store.record_document(analysis, fingerprint)
+    audit_store.record_document(analysis, fingerprint, submitted_by=submitted_by)
     object_store.put(f"documents/{analysis.document_id}", data)
 
 
@@ -151,7 +153,7 @@ async def verify_document(
     )
     # Persist BEFORE masking: the audit store applies its own redaction, and
     # the validators upstream have already used the real value.
-    _persist(analysis, data)
+    _persist(analysis, data, user.username)
     # Unmasking is a privilege, not a parameter. An operator asking for it
     # gets the masked response anyway -- and is told why, rather than being
     # left to wonder whether the flag works. This is the one place where the
@@ -214,8 +216,8 @@ async def verify_documents(
     )
 
     for analysis, (data, _) in zip(result.documents, documents):
-        _persist(analysis, data)
-    audit_store.record_case(result)
+        _persist(analysis, data, user.username)
+    audit_store.record_case(result, submitted_by=user.username)
 
     if reveal_identifiers and not has_permission(user.role, "verify:reveal_identifiers"):
         raise HTTPException(
@@ -415,6 +417,22 @@ async def verify_face_match(
     }
 
 
+
+def _with_review(subject_type: str, records: list[dict]) -> list[dict]:
+    """
+    Attach each record's current human decision, or None if nobody has decided.
+
+    One query for the whole page rather than one per row. "review" is None
+    exactly when a record is still waiting on a person, which is what a review
+    queue is built from.
+    """
+    key = "document_id" if subject_type == "document" else "case_id"
+    ids = [r[key] for r in records if r.get(key)]
+    latest = audit_store.latest_decisions(subject_type, ids)
+    for record in records:
+        record["review"] = latest.get(record.get(key))
+    return records
+
 @router.get("/cases/recent")
 def recent_cases(
     limit: int = 20, _user: User = Depends(requires("audit:read"))
@@ -434,7 +452,7 @@ def recent_cases(
             ),
             "cases": [],
         }
-    return {"available": True, "cases": audit_store.recent_cases(limit)}
+    return {"available": True, "cases": _with_review("case", audit_store.recent_cases(limit))}
 
 
 @router.get("/documents/recent")
@@ -460,7 +478,10 @@ def recent_documents(
             ),
             "documents": [],
         }
-    return {"available": True, "documents": audit_store.recent_documents(limit)}
+    return {
+        "available": True,
+        "documents": _with_review("document", audit_store.recent_documents(limit)),
+    }
 
 
 @router.get("/documents/{fingerprint}/history")

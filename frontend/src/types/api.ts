@@ -248,6 +248,42 @@ export interface RecentCasesResponse {
   cases: Record<string, unknown>[];
 }
 
+// --- human review ---
+
+/** What a person decided. Distinct from the system's Decision on purpose. */
+export type ReviewOutcome = 'approve' | 'reject' | 'needs_info';
+
+/**
+ * One recorded decision. Everything except `outcome` and `note` is filled in by
+ * the server -- who decided from the token, what the system said from the
+ * stored audit record -- so none of it can be misstated by the reviewer.
+ */
+export interface ReviewDecision {
+  decision_id: string;
+  subject_type: 'document' | 'case';
+  subject_id: string;
+  outcome: ReviewOutcome;
+  note: string;
+  reviewer: string;
+  reviewer_role: Role;
+  decided_at: string;
+  system_decision: Decision | null;
+  system_score: number | null;
+  system_blocked: boolean;
+  /** null where the system took no position (manual_review) or info was requested. */
+  agrees_with_system: boolean | null;
+  overrides_block: boolean;
+  /** null for records made before submitters were recorded. */
+  self_reviewed: boolean | null;
+}
+
+export interface DecisionHistory {
+  available: boolean;
+  /** Oldest first. Append-only: nothing is ever edited or removed. */
+  decisions: ReviewDecision[];
+  current: ReviewDecision | null;
+}
+
 /**
  * A stored single-document assessment.
  *
@@ -265,6 +301,9 @@ export interface RecordedDocument {
   recorded_at?: string;
   created_at?: string;
   processing_ms?: Record<string, number>;
+  submitted_by?: string | null;
+  /** The current human decision; null while the record waits for one. */
+  review?: ReviewDecision | null;
 }
 
 export interface RecentDocumentsResponse {

@@ -9,6 +9,7 @@ import type {
   CurrentUser,
   DocumentAnalysis,
   DocumentHistoryResponse,
+  DecisionHistory,
   DocumentType,
   FaceMatchResponse,
   LivenessCompleteResponse,
@@ -16,6 +17,8 @@ import type {
   LivenessStartResponse,
   RecentCasesResponse,
   RecentDocumentsResponse,
+  ReviewDecision,
+  ReviewOutcome,
   Role,
   Signal,
   TokenResponse,
@@ -207,6 +210,40 @@ export async function recentCases(limit = 20): Promise<RecentCasesResponse> {
 export async function recentDocuments(limit = 20): Promise<RecentDocumentsResponse> {
   const { data } = await api.get<RecentDocumentsResponse>(`${V1}/documents/recent`, {
     params: { limit },
+  });
+  return data;
+}
+
+export type ReviewSubject = 'document' | 'case';
+
+function decisionsPath(subject: ReviewSubject, id: string): string {
+  const collection = subject === 'document' ? 'documents' : 'cases';
+  return `${V1}/${collection}/${encodeURIComponent(id)}/decisions`;
+}
+
+/** Every decision recorded on a document or case, oldest first. */
+export async function decisionHistory(
+  subject: ReviewSubject,
+  id: string,
+): Promise<DecisionHistory> {
+  const { data } = await api.get<DecisionHistory>(decisionsPath(subject, id));
+  return data;
+}
+
+/**
+ * Record a human decision. Only the outcome and note are sent: the server
+ * fills in who decided and what the system had recommended, and refuses a
+ * request that tries to set either.
+ */
+export async function recordDecision(
+  subject: ReviewSubject,
+  id: string,
+  outcome: ReviewOutcome,
+  note: string,
+): Promise<ReviewDecision> {
+  const { data } = await api.post<ReviewDecision>(decisionsPath(subject, id), {
+    outcome,
+    note,
   });
   return data;
 }

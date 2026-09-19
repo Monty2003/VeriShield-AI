@@ -9,7 +9,7 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from app.api.routes import auth, health, liveness, verify
+from app.api.routes import auth, health, liveness, review, verify
 from app.core.config import settings
 
 logger = logging.getLogger(__name__)
@@ -146,6 +146,7 @@ app.include_router(health.router, tags=["health"])
 app.include_router(auth.router, prefix="/api/v1", tags=["auth"])
 app.include_router(verify.router, prefix="/api/v1", tags=["verification"])
 app.include_router(liveness.router, prefix="/api/v1", tags=["liveness"])
+app.include_router(review.router, prefix="/api/v1", tags=["review"])
 
 
 @app.get("/")

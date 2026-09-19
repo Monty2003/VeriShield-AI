@@ -88,10 +88,17 @@ class AuditStore:
     was kept, and never an exception in the middle of a verification.
     """
 
-    def __init__(self, url: str | None = None, database: str | None = None) -> None:
+    def __init__(
+        self,
+        url: str | None = None,
+        database: str | None = None,
+        client: Any = None,
+    ) -> None:
         self.url = url or settings.mongo_url
         self.database = database or settings.mongo_db
-        self._client = None
+        # An already-connected client may be supplied -- tests pass an
+        # in-memory one so that nothing is ever written to a real database.
+        self._client = client
         self._error = ""
         self._probed_at = 0.0
 
@@ -136,7 +143,10 @@ class AuditStore:
     # ---- writes ---------------------------------------------------------
 
     def record_document(
-        self, analysis: DocumentAnalysis, fingerprint: str | None = None
+        self,
+        analysis: DocumentAnalysis,
+        fingerprint: str | None = None,
+        submitted_by: str | None = None,
     ) -> bool:
         """Store one document assessment. Returns whether it was persisted."""
         client = self._connect()
@@ -145,6 +155,9 @@ class AuditStore:
 
         payload = _redact(analysis.model_dump(mode="json"))
         payload["fingerprint"] = fingerprint
+        # Who submitted it, so a later decision by the same person is visible
+        # as a self-review rather than passing for an independent check.
+        payload["submitted_by"] = submitted_by
         payload["recorded_at"] = datetime.now(timezone.utc).isoformat()
 
         try:
@@ -153,12 +166,15 @@ class AuditStore:
         except Exception:  # noqa: BLE001
             return False
 
-    def record_case(self, result: VerificationResult) -> bool:
+    def record_case(
+        self, result: VerificationResult, submitted_by: str | None = None
+    ) -> bool:
         client = self._connect()
         if client is None:
             return False
 
         payload = _redact(result.model_dump(mode="json"))
+        payload["submitted_by"] = submitted_by
         payload["recorded_at"] = datetime.now(timezone.utc).isoformat()
 
         try:
@@ -229,6 +245,81 @@ class AuditStore:
             )
         except Exception:  # noqa: BLE001
             return []
+
+    # ---- human decisions --------------------------------------------------
+    #
+    # The system recommends; a person decides. Those decisions are kept in
+    # their own collection, append-only: nothing here updates or deletes one.
+    # A later decision on the same record supersedes the earlier one for
+    # display, and the earlier one stays -- an audit trail that can be
+    # rewritten after the fact is not an audit trail.
+
+    _SUBJECTS = {"document": ("documents", "document_id"), "case": ("cases", "case_id")}
+
+    def find_subject(self, subject_type: str, subject_id: str) -> dict | None:
+        """
+        The stored assessment a decision is about, or None.
+
+        Read from the audit record rather than taken from the caller, so what
+        the system recommended cannot be misstated by whoever is deciding.
+        """
+        client = self._connect()
+        if client is None or subject_type not in self._SUBJECTS:
+            return None
+        collection, key = self._SUBJECTS[subject_type]
+        try:
+            return client[self.database][collection].find_one(
+                {key: subject_id}, {"_id": 0, "signals": 0}
+            )
+        except Exception:  # noqa: BLE001
+            return None
+
+    def record_decision(self, decision: dict[str, Any]) -> bool:
+        client = self._connect()
+        if client is None:
+            return False
+        try:
+            collection = client[self.database]["decisions"]
+            collection.create_index([("subject_type", 1), ("subject_id", 1), ("decided_at", 1)])
+            collection.insert_one(dict(decision))
+            return True
+        except Exception:  # noqa: BLE001
+            return False
+
+    def decisions_for(self, subject_type: str, subject_id: str) -> list[dict]:
+        """Every decision on one record, oldest first."""
+        client = self._connect()
+        if client is None:
+            return []
+        try:
+            return list(
+                client[self.database]["decisions"]
+                .find({"subject_type": subject_type, "subject_id": subject_id}, {"_id": 0})
+                .sort("decided_at", 1)
+            )
+        except Exception:  # noqa: BLE001
+            return []
+
+    def latest_decisions(self, subject_type: str, subject_ids: list[str]) -> dict[str, dict]:
+        """The current decision for each of many records, in one query."""
+        client = self._connect()
+        if client is None or not subject_ids:
+            return {}
+        try:
+            rows = (
+                client[self.database]["decisions"]
+                .find(
+                    {"subject_type": subject_type, "subject_id": {"$in": list(subject_ids)}},
+                    {"_id": 0},
+                )
+                .sort("decided_at", 1)
+            )
+        except Exception:  # noqa: BLE001
+            return {}
+        latest: dict[str, dict] = {}
+        for row in rows:  # ascending, so the last one written wins
+            latest[row["subject_id"]] = row
+        return latest
 
 
 class ObjectStore:

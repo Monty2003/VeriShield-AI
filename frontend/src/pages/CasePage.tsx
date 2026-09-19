@@ -15,6 +15,7 @@ import RiskGauge from '../components/RiskGauge';
 import SignalList from '../components/SignalList';
 import ContributionChart from '../components/ContributionChart';
 import QrSignatureBadge from '../components/QrSignatureBadge';
+import ReviewPanel from '../components/ReviewPanel';
 import { Banner, Empty, SectionHeading, Spinner } from '../components/ui';
 import { useAuth } from '../auth/AuthContext';
 import { describeError } from '../api/client';
@@ -185,6 +186,7 @@ export default function CasePage() {
       {result && (
         <div className="animate-fade-up space-y-6">
           <div className="grid gap-4 lg:grid-cols-[19rem_1fr]">
+            <div className="space-y-4">
             <div className="card p-5">
               {result.overall_risk ? (
                 <RiskGauge risk={result.overall_risk} />
@@ -202,6 +204,16 @@ export default function CasePage() {
                   {selfie.length ? ' + presenter photo' : ''}
                 </p>
               </div>
+            </div>
+
+            {/* One decision for the case: it is the pair of documents, and the
+                person presenting them, that is being signed off. */}
+            <ReviewPanel
+              subject="case"
+              subjectId={result.case_id}
+              systemDecision={result.overall_risk?.decision}
+              blocked={(result.overall_risk?.blocking_reasons ?? []).length > 0}
+            />
             </div>
 
             <div className="space-y-4">
@@ -253,6 +265,7 @@ export default function CasePage() {
           <div className={cx('rounded-xl border border-ink-700 p-4 sm:p-5')}>
             {result.documents[active] && (
               <DocumentReport
+                reviewable={false}
                 analysis={result.documents[active]}
                 previewUrl={previews[active] ?? null}
               />

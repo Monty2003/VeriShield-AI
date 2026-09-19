@@ -37,3 +37,5 @@ httpx==0.28.1
 # Redis semantics in tests without a Redis server -- including two stores on
 # one server, which is how the multi-worker behaviour is tested.
 fakeredis==2.38.0
+# MongoDB semantics in tests, so no test ever writes to the real audit trail.
+mongomock==4.3.0
