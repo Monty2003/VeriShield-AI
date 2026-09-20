@@ -15,11 +15,18 @@ import axios, {
 } from 'axios';
 import type { TokenResponse } from '../types/api';
 
-const BASE_URL = process.env.REACT_APP_API_URL ?? '';
+export const BASE_URL = process.env.REACT_APP_API_URL ?? '';
 
 const ACCESS_KEY = 'vs_access_token';
 const REFRESH_KEY = 'vs_refresh_token';
 const REMEMBER_KEY = 'vs_remember_device';
+/** When the server last renewed this sign-in's idle clock (ms since epoch). */
+export const RENEWED_KEY = 'vs_session_renewed';
+/** When this sign-in began (ms since epoch). */
+export const SIGNED_IN_KEY = 'vs_signed_in_at';
+/** Why the last sign-in ended, for the sign-in screen to say. Per tab. */
+export const ENDED_KEY = 'vs_signout_reason';
+const META_KEYS = [RENEWED_KEY, SIGNED_IN_KEY];
 
 // --- token storage -------------------------------------------------------
 //
@@ -75,13 +82,23 @@ export const tokens = {
   clear() {
     for (const kind of ['local', 'session'] as const) {
       try {
-        storage(kind)?.removeItem(ACCESS_KEY);
-        storage(kind)?.removeItem(REFRESH_KEY);
+        for (const key of [ACCESS_KEY, REFRESH_KEY, ...META_KEYS]) {
+          storage(kind)?.removeItem(key);
+        }
       } catch {
         // nothing stored there to leave behind
       }
     }
   },
+  /** Session facts kept beside the tokens, in the same store and for as long. */
+  setMeta(key: string, value: string) {
+    try {
+      active()?.setItem(key, value);
+    } catch {
+      // a timer that cannot persist still counts within this page
+    }
+  },
+  getMeta: (key: string) => read(key),
   /** Where the next sign-in is kept: this device (true) or this tab (false). */
   rememberDevice(yes: boolean) {
     try {
@@ -150,8 +167,15 @@ type Retriable = InternalAxiosRequestConfig & { _retried?: boolean };
 /** Ek hi refresh chale, chahe 5 request ek saath 401 khayen. */
 let refreshing: Promise<string | null> | null = null;
 
-function onSessionLost() {
+function onSessionLost(reason?: string) {
   tokens.clear();
+  if (reason) {
+    try {
+      sessionStorage.setItem(ENDED_KEY, reason);
+    } catch {
+      // the sign-in screen will simply not say why
+    }
+  }
   // Router ke bahar hain (interceptor React tree me nahi hai), isliye hard
   // redirect. ?next= isliye ki login ke baad user wahin wapas aa jaye.
   if (window.location.pathname !== '/login') {
@@ -181,7 +205,15 @@ async function refreshAccessToken(): Promise<string | null> {
 }
 
 api.interceptors.response.use(
-  (response) => response,
+  (response) => {
+    // Every authenticated request the server accepted renewed this sign-in's
+    // idle clock there; mirror that here so the countdown shows the server's
+    // deadline rather than a guess.
+    if (response.config.headers?.Authorization) {
+      tokens.setMeta(RENEWED_KEY, String(Date.now()));
+    }
+    return response;
+  },
   async (error: AxiosError) => {
     const config = error.config as Retriable | undefined;
 
@@ -206,7 +238,10 @@ api.interceptors.response.use(
     const fresh = await refreshing;
 
     if (!fresh) {
-      onSessionLost();
+      const detail = (error.response?.data as { detail?: unknown } | undefined)?.detail;
+      onSessionLost(
+        typeof detail === 'string' && detail.includes('without activity') ? 'idle' : 'expired',
+      );
       return Promise.reject(error);
     }
 

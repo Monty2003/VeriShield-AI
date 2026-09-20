@@ -59,6 +59,8 @@ class StateStore(Protocol):
     def ping(self) -> bool: ...
     def revoke(self, key: str, ttl_seconds: int) -> None: ...
     def is_revoked(self, key: str) -> bool: ...
+    def mark(self, key: str, ttl_seconds: int) -> None: ...
+    def is_marked(self, key: str) -> bool: ...
     def hit(self, key: str, allowance: int, window_seconds: int) -> int: ...
     def liveness_create(self, session_id: str, header: Header, ttl_seconds: int) -> None: ...
     def liveness_append(self, session_id: str, frame: Frame, ttl_seconds: int) -> int | None: ...
@@ -84,6 +86,7 @@ class MemoryStateStore:
         self._clock = clock
         self._lock = threading.Lock()
         self._revoked: dict[str, float] = {}
+        self._marks: dict[str, float] = {}
         self._hits: dict[str, deque[float]] = defaultdict(deque)
         self._liveness: dict[str, tuple[float, Header, list[Frame]]] = {}
 
@@ -107,6 +110,25 @@ class MemoryStateStore:
                 return False
             if until <= self._clock():
                 del self._revoked[key]
+                return False
+            return True
+
+    # A key that exists until its time runs out: "this session was active in
+    # the last N seconds". Kept apart from revocations, which mean the opposite.
+    def mark(self, key: str, ttl_seconds: int) -> None:
+        with self._lock:
+            now = self._clock()
+            if len(self._marks) > 1000:
+                self._marks = {k: t for k, t in self._marks.items() if t > now}
+            self._marks[key] = now + max(1, ttl_seconds)
+
+    def is_marked(self, key: str) -> bool:
+        with self._lock:
+            until = self._marks.get(key)
+            if until is None:
+                return False
+            if until <= self._clock():
+                del self._marks[key]
                 return False
             return True
 
@@ -203,6 +225,12 @@ class RedisStateStore:
 
     def is_revoked(self, key: str) -> bool:
         return bool(self._call(lambda: self._r.exists(f"{PREFIX}revoked:{key}")))
+
+    def mark(self, key: str, ttl_seconds: int) -> None:
+        self._call(lambda: self._r.set(f"{PREFIX}mark:{key}", b"1", ex=max(1, ttl_seconds)))
+
+    def is_marked(self, key: str) -> bool:
+        return bool(self._call(lambda: self._r.exists(f"{PREFIX}mark:{key}")))
 
     # -- rate limiting --
 

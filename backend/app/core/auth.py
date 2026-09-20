@@ -18,6 +18,7 @@ from fastapi import Depends, HTTPException, Request, status
 from fastapi.security import OAuth2PasswordBearer
 
 from app.core import state
+from app.core.config import settings
 from app.core.security import (
     REFRESH_TOKEN_DAYS,
     Role,
@@ -70,6 +71,45 @@ def is_revoked(payload: dict) -> bool:
     return bool(payload.get("sid")) and store.is_revoked(f"sid:{payload['sid']}")
 
 
+def idle_timeout_seconds() -> int:
+    """How long a sign-in may go unused before the server ends it; 0 = never."""
+    return max(0, settings.session_idle_minutes) * 60
+
+
+def start_idle_clock(session_id: str) -> None:
+    """A new sign-in starts with a full allowance of inactivity."""
+    if idle_timeout_seconds():
+        state.store().mark(f"alive:{session_id}", idle_timeout_seconds())
+
+
+def renew_idle_clock(payload: dict) -> None:
+    """The session was just used: it may now go unused for the full period again."""
+    if payload.get("sid") and idle_timeout_seconds():
+        state.store().mark(f"alive:{payload['sid']}", idle_timeout_seconds())
+
+
+def idle_expired(payload: dict) -> bool:
+    """
+    Whether this token's sign-in has gone unused past the limit.
+
+    Tokens minted without a session id (before sessions existed) carry nothing
+    to time, and are left to their own expiry -- an access token lasts half an
+    hour. Every sign-in since carries one.
+    """
+    sid = payload.get("sid")
+    if not sid or not idle_timeout_seconds():
+        return False
+    return not state.store().is_marked(f"alive:{sid}")
+
+
+def idle_message() -> str:
+    minutes = settings.session_idle_minutes
+    return (
+        f"Signed out after {minutes} minute{'s' if minutes != 1 else ''} without "
+        f"activity. Sign in again to continue."
+    )
+
+
 def _unauthorised(detail: str) -> HTTPException:
     return HTTPException(
         status_code=status.HTTP_401_UNAUTHORIZED,
@@ -106,12 +146,21 @@ async def current_user(token: str | None = Depends(oauth2_scheme)) -> User:
 
     try:
         revoked = is_revoked(payload)
+        idle = not revoked and idle_expired(payload)
+        if idle:
+            # Ended, not merely refused: the refresh token dies with it, so
+            # the page cannot quietly mint a fresh access token afterwards.
+            revoke_session(payload)
+        elif not revoked:
+            renew_idle_clock(payload)
     except state.StateUnavailable as exc:
         raise HTTPException(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail=_STORE_DOWN
         ) from exc
     if revoked:
         raise _unauthorised("This session has been signed out.")
+    if idle:
+        raise _unauthorised(idle_message())
 
     if not user_store.available:
         raise HTTPException(

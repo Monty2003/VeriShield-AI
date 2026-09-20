@@ -16,7 +16,14 @@ import {
   useState,
 } from 'react';
 import type { ReactNode } from 'react';
-import { describeError, revokeSession, tokens } from '../api/client';
+import {
+  ENDED_KEY,
+  RENEWED_KEY,
+  SIGNED_IN_KEY,
+  describeError,
+  revokeSession,
+  tokens,
+} from '../api/client';
 import * as api from '../api/endpoints';
 import type { CurrentUser } from '../types/api';
 
@@ -29,6 +36,11 @@ interface AuthValue {
   /** `remember` keeps the session on this device; otherwise it ends with the tab. */
   signIn: (username: string, password: string, remember?: boolean) => Promise<boolean>;
   signOut: () => Promise<void>;
+  /**
+   * End the sign-in without the user asking -- the idle timer ran out. Ends
+   * it on the server too, and leaves the reason for the sign-in screen.
+   */
+  endSession: (reason: 'idle') => void;
   can: (permission: string) => boolean;
   clearError: () => void;
 }
@@ -79,6 +91,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     tokens.rememberDevice(remember);
     try {
       await api.login(username, password);
+      const now = String(Date.now());
+      tokens.setMeta(SIGNED_IN_KEY, now);
+      tokens.setMeta(RENEWED_KEY, now);
       setUser(await api.fetchMe());
       return true;
     } catch (err) {
@@ -100,6 +115,21 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setUser(null);
   }, []);
 
+  const endSession = useCallback((reason: 'idle') => {
+    const access = tokens.access();
+    // Best effort, and not awaited: if the server has already ended it for
+    // inactivity there is nothing left to revoke, and the page must not wait.
+    if (access) void revokeSession(access);
+    tokens.clear();
+    tokens.rememberDevice(false);
+    try {
+      sessionStorage.setItem(ENDED_KEY, reason);
+    } catch {
+      // the sign-in screen will simply not say why
+    }
+    setUser(null);
+  }, []);
+
   const can = useCallback(
     (permission: string) => Boolean(user?.permissions?.includes(permission)),
     [user],
@@ -113,10 +143,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       error,
       signIn,
       signOut,
+      endSession,
       can,
       clearError: () => setError(''),
     }),
-    [user, booting, signingIn, error, signIn, signOut, can],
+    [user, booting, signingIn, error, signIn, signOut, endSession, can],
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

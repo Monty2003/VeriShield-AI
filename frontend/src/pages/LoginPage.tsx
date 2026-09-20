@@ -13,6 +13,7 @@ import { useEffect, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { Eye, EyeOff, ShieldCheck } from 'lucide-react';
 import { useAuth } from '../auth/AuthContext';
+import { ENDED_KEY } from '../api/client';
 import { Banner, Spinner } from '../components/ui';
 
 const HIGHLIGHTS = [
@@ -29,6 +30,16 @@ export default function LoginPage() {
   const [password, setPassword] = useState('');
   const [reveal, setReveal] = useState(false);
   const [remember, setRemember] = useState(false);
+  // Why the last sign-in ended, if it ended without being asked to. Read once.
+  const [ended] = useState<string | null>(() => {
+    try {
+      const reason = sessionStorage.getItem(ENDED_KEY);
+      sessionStorage.removeItem(ENDED_KEY);
+      return reason;
+    } catch {
+      return null;
+    }
+  });
 
   const from = (location.state as { from?: string } | null)?.from ?? '/verify';
 
@@ -96,6 +107,16 @@ export default function LoginPage() {
           <p className="mt-1 text-sm text-slate-500">
             Accounts are created by an administrator.
           </p>
+
+          {ended && (
+            <div className="mt-4">
+              <Banner tone="info" title={ended === 'idle' ? 'Signed out for inactivity' : 'Session ended'}>
+                {ended === 'idle'
+                  ? 'The session was left without activity, so it was ended here and on the server. Sign in again to continue.'
+                  : 'Your session has ended. Sign in again to continue.'}
+              </Banner>
+            </div>
+          )}
 
           <div className="mt-7 space-y-4">
             <div>

@@ -39,3 +39,12 @@ test('asking to be kept signed in is passed on', async () => {
   fillAndSubmit();
   await waitFor(() => expect(mockSignIn).toHaveBeenCalledWith('admin', 'secret-pass', true));
 });
+
+test('after an inactivity sign-out, the sign-in screen says why -- once', () => {
+  sessionStorage.setItem('vs_signout_reason', 'idle');
+  const { unmount } = render(<MemoryRouter><LoginPage /></MemoryRouter>);
+  expect(screen.getByText(/signed out for inactivity/i)).toBeInTheDocument();
+  unmount();
+  render(<MemoryRouter><LoginPage /></MemoryRouter>);
+  expect(screen.queryByText(/signed out for inactivity/i)).not.toBeInTheDocument();
+});

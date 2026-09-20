@@ -39,8 +39,24 @@ module.exports = {
         "scanline": "scanline 8s linear infinite",
         "pulse-glow": "pulseGlow 2s ease-in-out infinite",
         "spin-slow": "spin 6s linear infinite",
+        // A pulse with a rest in it: two beats then a pause, the shape of a
+        // heartbeat. A steady blink reads as a warning light; this reads as alive.
+        heartbeat: "heartbeat 1.8s ease-in-out infinite",
+        "heartbeat-ring": "heartbeatRing 1.8s ease-out infinite",
       },
       keyframes: {
+        heartbeat: {
+          "0%, 55%, 100%": { transform: "scale(1)", filter: "drop-shadow(0 0 3px currentColor)" },
+          "10%": { transform: "scale(1.5)", filter: "drop-shadow(0 0 9px currentColor)" },
+          "22%": { transform: "scale(1)", filter: "drop-shadow(0 0 3px currentColor)" },
+          "32%": { transform: "scale(1.3)", filter: "drop-shadow(0 0 7px currentColor)" },
+          "44%": { transform: "scale(1)", filter: "drop-shadow(0 0 3px currentColor)" },
+        },
+        heartbeatRing: {
+          "0%": { transform: "scale(0.9)", opacity: "0.5" },
+          "35%": { transform: "scale(2.2)", opacity: "0" },
+          "100%": { transform: "scale(2.2)", opacity: "0" },
+        },
         fadeUp: {
           "0%": { opacity: "0", transform: "translateY(8px)" },
           "100%": { opacity: "1", transform: "translateY(0)" },

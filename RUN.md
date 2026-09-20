@@ -86,6 +86,25 @@ wakes), should set `VERISHIELD_STATE_BACKEND=redis` and `VERISHIELD_REDIS_URL`.
 With Redis configured but unreachable, authenticated requests are refused (503)
 rather than admitted without checking whether the session was signed out.
 
+`/health` separates `degraded` -- something the service needs is broken --
+from `optional_off`, capabilities that were never configured here, such as
+document retention (MinIO) or a GPU. The dashboard colours itself from the
+first list only, so an optional store that was never started does not report
+the server as damaged. Optional stores are probed in the background: a stopped
+MinIO used to put a two-second connect attempt inside every health check.
+
+A sign-in ends after `VERISHIELD_SESSION_IDLE_MINUTES` (5 by default) without
+activity, and the server enforces it: each authenticated request renews the
+clock, the dashboard renews it while someone is using the page, and once the
+clock runs out the session is revoked -- refresh token included -- so a held
+token cannot outlive the countdown in the browser. Set it to 0 to switch idle
+timeouts off. The dashboard shows the time left and warns a minute before.
+
+The dashboard's session card asks the browser for the device's location and,
+if it is given, sends those coordinates -- rounded to about a kilometre --
+to OpenStreetMap's public geocoder to name the place. Nothing about the
+location reaches this project's own server, and the card works without it.
+
 An Aadhaar is auto-accepted only once its signed Secure QR has been compared
 with the printed side -- on the same image, or on the back submitted with it
 (the Verify page's second dropzone, or a case). A front on its own goes to

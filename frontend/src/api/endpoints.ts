@@ -3,7 +3,8 @@
  * Component kabhi raw URL na likhe -- backend badla to sirf yahi file badle.
  */
 
-import { api, tokens } from './client';
+import axios from 'axios';
+import { api, BASE_URL, tokens } from './client';
 import type {
   Challenge,
   CurrentUser,
@@ -301,7 +302,33 @@ export async function livenessComplete(
 // --- health --------------------------------------------------------------
 
 /** /health prefix ke bahar hai aur auth-free hai -- connectivity check ke liye. */
+/**
+ * Service health. Public, and fetched WITHOUT the session's token: it is
+ * polled in the background, and a background request must not look like
+ * activity -- the idle countdown counts only requests that renew the sign-in.
+ */
 export async function health(): Promise<Record<string, unknown>> {
-  const { data } = await api.get<Record<string, unknown>>('/health');
+  const { data } = await axios.get<Record<string, unknown>>(`${BASE_URL}/health`, {
+    timeout: 10_000,
+  });
   return data;
+}
+
+export interface SessionInfo {
+  username: string;
+  /** 0 means the server does not end idle sign-ins. */
+  idle_timeout_seconds: number;
+  /** The address this server received the request from. */
+  client_ip: string | null;
+  user_agent: string;
+}
+
+export async function sessionInfo(): Promise<SessionInfo> {
+  const { data } = await api.get<SessionInfo>(`${V1}/auth/session`);
+  return data;
+}
+
+/** Someone is using the page: renew the sign-in's idle clock on the server. */
+export async function keepAlive(): Promise<void> {
+  await api.post(`${V1}/auth/session/keepalive`);
 }

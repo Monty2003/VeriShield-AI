@@ -40,6 +40,13 @@ from app.schemas.document import DocumentAnalysis, VerificationResult
 # the whole service being dead.
 _PROBE_CACHE_SECONDS = 10.0
 
+# A store that is not running stays not running: re-probing it every ten
+# seconds put a two-second connect attempt in the middle of /health, which the
+# dashboard polls -- so the dashboard reported the server as slow, and the
+# slowness was the dashboard asking. Optional and absent is a steady state;
+# five minutes is soon enough to notice it coming back.
+_OFFLINE_PROBE_CACHE_SECONDS = 300.0
+
 # Field names whose values must never be written verbatim to the audit store.
 # Masking happens here rather than at the call site so that a new caller cannot
 # forget to do it.
@@ -341,6 +348,32 @@ class ObjectStore:
         self._client = None
         self._error = ""
         self._probed_at = 0.0
+        self._probing = False
+
+    def _probe_in_background(self) -> None:
+        """
+        Try to connect without making the caller wait.
+
+        /health is polled by the dashboard every fifteen seconds, and a stopped
+        MinIO answers a connect attempt in its own time -- which the dashboard
+        then displayed as the SERVER being slow. Retention is optional, so its
+        state is reported as last known and refreshed behind the request.
+        """
+        import threading
+        import time
+
+        if self._probing:
+            return
+        self._probing = True
+        self._probed_at = time.monotonic()
+
+        def run() -> None:
+            try:
+                self._connect(blocking=True)
+            finally:
+                self._probing = False
+
+        threading.Thread(target=run, name="object-store-probe", daemon=True).start()
 
     @property
     def available(self) -> bool:
@@ -351,13 +384,23 @@ class ObjectStore:
         self._connect()
         return self._error
 
-    def _connect(self):
+    def _connect(self, blocking: bool = False):
+        """
+        The client, or None. `blocking` waits for a connection attempt; the
+        default answers from what is already known and refreshes behind the
+        caller, which is what a status page wants.
+        """
         if self._client is not None:
             return self._client
 
         import time
 
-        if self._error and (time.monotonic() - self._probed_at) < _PROBE_CACHE_SECONDS:
+        if self._probing:
+            return None
+        if self._error and (time.monotonic() - self._probed_at) < _OFFLINE_PROBE_CACHE_SECONDS:
+            return None
+        if not blocking:
+            self._probe_in_background()
             return None
 
         self._probed_at = time.monotonic()
@@ -370,7 +413,7 @@ class ObjectStore:
             # /health. One short attempt, no retries: either it is there or it
             # is not, and the caller needs that answer immediately.
             http_client = urllib3.PoolManager(
-                timeout=urllib3.Timeout(connect=1.0, read=2.0),
+                timeout=urllib3.Timeout(connect=0.5, read=1.5),
                 retries=urllib3.Retry(total=0, connect=0, read=0),
             )
             client = Minio(
@@ -391,7 +434,7 @@ class ObjectStore:
 
     def put(self, name: str, data: bytes, content_type: str = "application/octet-stream") -> str | None:
         """Store an object and return its key, or None if storage is unavailable."""
-        client = self._connect()
+        client = self._connect(blocking=True)
         if client is None:
             return None
         import io
@@ -409,7 +452,7 @@ class ObjectStore:
             return None
 
     def get(self, name: str) -> bytes | None:
-        client = self._connect()
+        client = self._connect(blocking=True)
         if client is None:
             return None
         try:

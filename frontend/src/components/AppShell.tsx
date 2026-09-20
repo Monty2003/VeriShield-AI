@@ -24,8 +24,15 @@ import {
   X,
 } from 'lucide-react';
 import { useAuth } from '../auth/AuthContext';
-import { health } from '../api/endpoints';
+import { sessionInfo } from '../api/endpoints';
+import type { SessionInfo } from '../api/endpoints';
 import { cx } from '../lib/format';
+import ConnectionStatus from './ConnectionStatus';
+import SessionCard from './SessionCard';
+import SessionTimer from './SessionTimer';
+
+/** Used until the server says otherwise; the server enforces its own value. */
+const DEFAULT_IDLE_SECONDS = 5 * 60;
 
 interface NavItem {
   to: string;
@@ -103,25 +110,20 @@ export default function AppShell() {
   const { user, signOut, can } = useAuth();
   const location = useLocation();
   const [open, setOpen] = useState(false);
-  const [online, setOnline] = useState<boolean | null>(null);
+  const [session, setSession] = useState<SessionInfo | null>(null);
 
   useEffect(() => setOpen(false), [location.pathname]);
 
+  // The idle limit comes from the server, which is what enforces it.
   useEffect(() => {
     let cancelled = false;
-    const check = async () => {
-      try {
-        await health();
-        if (!cancelled) setOnline(true);
-      } catch {
-        if (!cancelled) setOnline(false);
-      }
-    };
-    check();
-    const timer = window.setInterval(check, 30_000);
+    sessionInfo()
+      .then((info) => {
+        if (!cancelled) setSession(info);
+      })
+      .catch(() => undefined);
     return () => {
       cancelled = true;
-      window.clearInterval(timer);
     };
   }, []);
 
@@ -193,24 +195,8 @@ export default function AppShell() {
         </nav>
 
         <div className="border-t-2 border-cyber-cyan/20 p-4 bg-ink-900/50 backdrop-blur-md">
-          <div className="flex items-center gap-2 px-2 pb-3">
-            <span
-              className={cx(
-                'h-2 w-2 rounded-none rotate-45 transition-all duration-500',
-                online === null
-                  ? 'bg-slate-600'
-                  : online
-                    ? 'animate-pulse-ring bg-cyber-cyan shadow-[0_0_8px_rgb(var(--accent)/0.8)]'
-                    : 'bg-verdict-reject shadow-[0_0_8px_rgba(255,0,60,0.8)]',
-              )}
-              aria-hidden
-            />
-            <span className={cx(
-              "font-mono text-[10px] font-bold uppercase tracking-[0.2em]",
-              online ? "text-cyber-cyan" : "text-slate-500"
-            )}>
-              {online === null ? 'SYNCING...' : online ? 'UPLINK ESTABLISHED' : 'CONNECTION LOST'}
-            </span>
+          <div className="pb-3">
+            <SessionCard info={session} />
           </div>
 
           <div className="flex items-center gap-3 border border-cyber-cyan/30 bg-ink-800 px-3 py-2.5 relative overflow-hidden group">
@@ -246,8 +232,8 @@ export default function AppShell() {
       )}
 
       <div className="flex min-w-0 flex-1 flex-col">
-        <header className="flex items-center justify-between border-b border-cyber-cyan/30 bg-ink-900/80 backdrop-blur-md px-4 py-3 lg:hidden shadow-[0_4px_15px_rgb(var(--accent)/0.05)] sticky top-0 z-20">
-          <div className="flex items-center gap-3">
+        <header className="flex items-center justify-between gap-3 border-b border-cyber-cyan/30 bg-ink-900/80 backdrop-blur-md px-4 py-3 shadow-[0_4px_15px_rgb(var(--accent)/0.05)] sticky top-0 z-20">
+          <div className="flex items-center gap-3 lg:hidden">
             <button
               onClick={() => setOpen(true)}
               className="border border-cyber-cyan/30 p-1.5 text-cyber-cyan hover:bg-cyber-cyan/10 hover:shadow-[0_0_8px_rgb(var(--accent)/0.3)] transition-all"
@@ -257,7 +243,10 @@ export default function AppShell() {
             </button>
             <p className="text-sm font-display font-bold uppercase tracking-widest text-white drop-shadow-[0_0_5px_rgba(255,255,255,0.5)]">VeriShield</p>
           </div>
-          <div className="h-2 w-2 rotate-45 bg-cyber-cyan shadow-[0_0_8px_rgb(var(--accent)/0.8)] animate-pulse"></div>
+          <div className="ml-auto flex items-center gap-2">
+            <ConnectionStatus />
+            <SessionTimer timeoutSeconds={session?.idle_timeout_seconds ?? DEFAULT_IDLE_SECONDS} />
+          </div>
         </header>
 
         <main className="min-w-0 flex-1 p-4 sm:p-6 lg:p-8 relative">

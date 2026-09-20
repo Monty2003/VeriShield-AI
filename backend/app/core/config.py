@@ -57,6 +57,14 @@ class Settings(BaseSettings):
     # every existing local setup start refusing requests.
     state_backend: str = "memory"
 
+    # Minutes a sign-in may go unused before the server ends it. 0 disables.
+    #
+    # Enforced here, not only in the browser: a countdown that lives only in the
+    # page is a display, and anyone holding the token could keep using the API
+    # after the page had "signed out". Each request renews the clock; the
+    # dashboard also renews it while someone is actually using the page.
+    session_idle_minutes: int = 5
+
     # Withhold acceptance of an Aadhaar whose Secure QR was not checked.
     #
     # Nothing printed on an Aadhaar -- name, date of birth, photograph -- has a

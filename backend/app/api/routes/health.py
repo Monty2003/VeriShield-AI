@@ -51,6 +51,10 @@ def health() -> dict[str, object]:
     gpu = "unknown (torch not loaded)" if torch else False
 
     degraded: list[str] = []
+    # Optional capabilities that are simply not configured here. Absent by
+    # choice is not a fault, and reporting it as one taught the dashboard to
+    # cry degraded at a server doing everything it was asked to do.
+    optional_off: list[str] = []
     if not ocr:
         degraded.append(
             "No OCR engine: no text can be read, so document type, content rules "
@@ -69,9 +73,9 @@ def health() -> dict[str, object]:
             "at all. Install with: pip install pillow-heif"
         )
     if torch and not gpu:
-        degraded.append(
-            "PyTorch is installed but no CUDA device is visible; models run on "
-            "CPU, several times slower."
+        optional_off.append(
+            "GPU acceleration: PyTorch is installed but no CUDA device is "
+            "visible, so models run on CPU, several times slower."
         )
     shared = state.store()
     if shared.kind == "redis" and not shared.ping():
@@ -94,10 +98,11 @@ def health() -> dict[str, object]:
             f"({audit_store.error[:80]})"
         )
     if not object_store.available:
-        degraded.append(
-            "Object store unreachable: submitted documents are not retained, so a "
-            "reviewer cannot re-examine the image behind a decision. "
-            f"({object_store.error[:80]})"
+        optional_off.append(
+            "Document retention (object store): submitted images are not kept, "
+            "so a reviewer cannot re-open the image behind a past decision. "
+            "Verification itself is unaffected. "
+            f"({object_store.error[:60]})"
         )
 
     qr_decoders = available_decoders()
@@ -150,4 +155,5 @@ def health() -> dict[str, object]:
             "L8_registry": "synthetic (non-authoritative)",
         },
         "degraded": degraded,
+        "optional_off": optional_off,
     }

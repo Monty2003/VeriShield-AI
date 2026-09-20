@@ -17,18 +17,22 @@ from __future__ import annotations
 
 import logging
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Request, status
 from fastapi.security import OAuth2PasswordRequestForm
 from pydantic import BaseModel, Field
 
 from app.core import state
 from app.core.auth import (
     current_user,
+    idle_expired,
+    idle_message,
+    idle_timeout_seconds,
     is_revoked,
     oauth2_scheme,
     rate_limit,
     requires,
     revoke_session,
+    start_idle_clock,
 )
 from app.core.security import (
     ROLE_PERMISSIONS,
@@ -113,6 +117,15 @@ def login(form: OAuth2PasswordRequestForm = Depends()) -> TokenResponse:
     except SecretNotConfigured as exc:
         raise HTTPException(status_code=503, detail=str(exc)) from exc
 
+    try:
+        start_idle_clock(sid)
+    except state.StateUnavailable:
+        # A store outage must not become a login outage. It stays fail-closed:
+        # every authenticated request is refused while the store is down, and
+        # once it is back this sign-in has no clock, reads as idle, and has to
+        # sign in again -- it never becomes a session that cannot time out.
+        logger.warning("session store unreachable at sign-in; idle clock not started")
+
     from app.core.security import ACCESS_TOKEN_MINUTES
 
     return TokenResponse(
@@ -152,6 +165,13 @@ def refresh_token(refresh_token: str) -> TokenResponse:
             raise HTTPException(
                 status_code=status.HTTP_401_UNAUTHORIZED,
                 detail="This session has been signed out.",
+            )
+        # Refreshing is not activity: a page left open would otherwise renew
+        # its own session every half hour, forever. An idle sign-in ends here.
+        if idle_expired(payload):
+            revoke_session(payload)
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED, detail=idle_message()
             )
     except state.StateUnavailable as exc:
         raise HTTPException(
@@ -222,6 +242,34 @@ def logout(
             "discard its refresh token on the client."
         ),
     }
+
+
+@router.get("/auth/session")
+def session_info(request: Request, user: User = Depends(current_user)) -> dict[str, object]:
+    """
+    This sign-in as the server sees it: how long it may go unused, and from
+    where the request came.
+
+    The address is the one this server received the request from -- behind a
+    proxy that is the proxy's, which is why it is labelled as seen by the
+    server rather than presented as the user's own.
+    """
+    return {
+        "username": user.username,
+        "idle_timeout_seconds": idle_timeout_seconds(),
+        "client_ip": request.client.host if request.client else None,
+        "user_agent": request.headers.get("user-agent", "")[:300],
+    }
+
+
+@router.post("/auth/session/keepalive")
+def keepalive(_user: User = Depends(current_user)) -> dict[str, object]:
+    """
+    Someone is using the page. Authenticating the request renews the clock;
+    this endpoint exists so a person reading a long report -- moving the mouse,
+    scrolling, making no other request -- is not signed out while present.
+    """
+    return {"idle_timeout_seconds": idle_timeout_seconds()}
 
 
 @router.get("/auth/me")
